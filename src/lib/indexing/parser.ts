@@ -94,6 +94,38 @@ export function extractImportsAndExports(code: string, language: string): {
         exports.push(pyDef[1]);
       }
     }
+  } else if (language === "Go") {
+    for (const line of lines) {
+      const trimmed = line.trim();
+      // Match: import "..."
+      const goImport = trimmed.match(/^import\s+["']([^"']+)["']/);
+      if (goImport) imports.push(goImport[1]);
+      // Match: func / type definitions
+      const goFunc = trimmed.match(/^func\s+(?:\([^)]+\)\s+)?([A-Za-z0-9_]+)/);
+      if (goFunc) exports.push(goFunc[1]);
+      const goType = trimmed.match(/^type\s+([A-Za-z0-9_]+)\s+(?:struct|interface)/);
+      if (goType) exports.push(goType[1]);
+    }
+  } else if (language === "Rust") {
+    for (const line of lines) {
+      const trimmed = line.trim();
+      // Match: use crate::...;
+      const rustUse = trimmed.match(/^use\s+([^;]+);/);
+      if (rustUse) imports.push(rustUse[1]);
+      // Match: pub fn / pub struct / pub enum
+      const rustPub = trimmed.match(/^pub(?:\([^)]+\))?\s+(?:async\s+)?(?:fn|struct|enum|trait|type)\s+([a-zA-Z0-9_]+)/);
+      if (rustPub) exports.push(rustPub[1]);
+    }
+  } else if (language === "Java") {
+    for (const line of lines) {
+      const trimmed = line.trim();
+      // Match: import java.util.*;
+      const javaImport = trimmed.match(/^import\s+([^;]+);/);
+      if (javaImport) imports.push(javaImport[1]);
+      // Match: public class / interface / enum
+      const javaClass = trimmed.match(/public\s+(?:static\s+)?(?:class|interface|enum)\s+([a-zA-Z0-9_]+)/);
+      if (javaClass) exports.push(javaClass[1]);
+    }
   }
 
   return { imports, exports };
@@ -131,10 +163,16 @@ export function chunkCodeFile(
   }
 
   // Heuristic language-aware boundary extraction
-  const functionRegex =
-    language === "Python"
-      ? /^(def\s+|class\s+|async\s+def\s+)([a-zA-Z0-9_]+)/
-      : /^(export\s+)?(default\s+)?(async\s+)?(function\s+|class\s+|const\s+([a-zA-Z0-9_$]+)\s*=\s*(async\s*)?\()/;
+  let functionRegex = /^(export\s+)?(default\s+)?(async\s+)?(function\s+|class\s+|const\s+([a-zA-Z0-9_$]+)\s*=\s*(async\s*)?\()/;
+  if (language === "Python") {
+    functionRegex = /^(def\s+|class\s+|async\s+def\s+)([a-zA-Z0-9_]+)/;
+  } else if (language === "Go") {
+    functionRegex = /^func\s+(?:\([^)]+\)\s+)?([A-Za-z0-9_]+)|type\s+([A-Za-z0-9_]+)\s+(?:struct|interface)/;
+  } else if (language === "Rust") {
+    functionRegex = /^(pub(?:\([^)]+\))?\s+)?(async\s+)?(fn|struct|enum|trait|impl|type)\s+([a-zA-Z0-9_]+)/;
+  } else if (language === "Java") {
+    functionRegex = /^(public|protected|private)?\s*(static\s+)?(final\s+)?(class|interface|enum|[a-zA-Z0-9_<>]+)\s+([a-zA-Z0-9_]+)\s*(\(|$)/;
+  }
 
   const boundaries: { line: number; name?: string; type: "function" | "class" | "block" }[] = [];
 
@@ -145,6 +183,15 @@ export function chunkCodeFile(
       if (language === "Python") {
         const m = line.trim().match(/^(?:def|class|async\s+def)\s+([a-zA-Z0-9_]+)/);
         if (m) name = m[1];
+      } else if (language === "Go") {
+        const m = line.trim().match(/^func\s+(?:\([^)]+\)\s+)?([A-Za-z0-9_]+)|type\s+([A-Za-z0-9_]+)/);
+        if (m) name = m[1] || m[2];
+      } else if (language === "Rust") {
+        const m = line.trim().match(/^(?:pub(?:\([^)]+\))?\s+)?(?:async\s+)?(?:fn|struct|enum|trait|impl|type)\s+([a-zA-Z0-9_]+)/);
+        if (m) name = m[1];
+      } else if (language === "Java") {
+        const m = line.trim().match(/(?:class|interface|enum|[a-zA-Z0-9_<>]+)\s+([a-zA-Z0-9_]+)\s*(\(|$)/);
+        if (m) name = m[1];
       } else {
         const m = line.trim().match(/(?:function|class|const|let)\s+([a-zA-Z0-9_$]+)/);
         if (m) name = m[1];
@@ -152,7 +199,7 @@ export function chunkCodeFile(
       boundaries.push({
         line: i + 1,
         name,
-        type: line.includes("class") ? "class" : "function",
+        type: line.includes("class") || line.includes("struct") ? "class" : "function",
       });
     }
   }
@@ -180,6 +227,7 @@ export function chunkCodeFile(
             content: subSlice.join("\n"),
             type: boundaries[b].type,
             name: `${boundaries[b].name} (part ${Math.floor(sub / maxChunkLines) + 1})`,
+            symbolName: boundaries[b].name,
             imports,
             exports,
           });
@@ -195,6 +243,7 @@ export function chunkCodeFile(
           content: chunkLines.join("\n"),
           type: boundaries[b].type,
           name: boundaries[b].name,
+          symbolName: boundaries[b].name,
           imports,
           exports,
         });

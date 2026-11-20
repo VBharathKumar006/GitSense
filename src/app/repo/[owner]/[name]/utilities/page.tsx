@@ -27,41 +27,28 @@ export default function UtilitiesPage() {
   const [activeTab, setActiveTab] = useState<"env" | "symbols" | "routes" | "security" | "circular" | "large">("env");
   const [symbolQuery, setSymbolQuery] = useState("");
 
+  const [loading, setLoading] = useState(true);
   const [detectedEnvVars, setDetectedEnvVars] = useState<
     { name: string; file: string; line: number; isSecret: boolean }[]
-  >([
-    { name: "GITHUB_TOKEN", file: "src/lib/github/api.ts", line: 79, isSecret: true },
-    { name: "GEMINI_API_KEY", file: "src/lib/ai/gemini.ts", line: 6, isSecret: true },
-    { name: "NODE_ENV", file: "next.config.ts", line: 1, isSecret: false },
-  ]);
+  >([]);
 
   const [detectedSymbols, setDetectedSymbols] = useState<
     { name: string; type: string; file: string; line: number }[]
-  >([
-    { name: "analyzeRepository", type: "function", file: "src/lib/indexing/analyzer.ts", line: 110 },
-    { name: "fetchRepoMetadata", type: "function", file: "src/lib/github/api.ts", line: 110 },
-    { name: "chunkCodeFile", type: "function", file: "src/lib/indexing/parser.ts", line: 102 },
-    { name: "RepositoryVectorStore", type: "class", file: "src/lib/search/vector-store.ts", line: 45 },
-    { name: "generateEmbedding", type: "function", file: "src/lib/ai/gemini.ts", line: 12 },
-  ]);
+  >([]);
 
   const [detectedRoutes, setDetectedRoutes] = useState<
     { method: string; path: string; file: string; description: string }[]
-  >([
-    { method: "GET / POST", path: "/api/revalidate", file: "src/app/api/revalidate/route.ts", description: "Webhook cache revalidation endpoint" },
-  ]);
+  >([]);
 
   const [securityFindings, setSecurityFindings] = useState<
     { severity: "safe" | "low" | "medium" | "high"; title: string; file: string; recommendation: string }[]
-  >([
-    { severity: "safe", title: "Dependencies Integrity", file: "package.json", recommendation: "Pinned package versions to prevent supply chain drift" },
-    { severity: "safe", title: "Code RAG Guardrails", file: "src/lib/ai/gemini.ts", recommendation: "Delimited XML code blocks protecting against injection" },
-  ]);
+  >([]);
 
   useEffect(() => {
     let isMounted = true;
     async function loadUtilities() {
       try {
+        setLoading(true);
         const res = await fetch(`/api/repo/${owner}/${name}/utilities`);
         if (res.ok) {
           const json = await res.json();
@@ -96,6 +83,8 @@ export default function UtilitiesPage() {
         }
       } catch {
         // Fallback
+      } finally {
+        if (isMounted) setLoading(false);
       }
     }
     loadUtilities();

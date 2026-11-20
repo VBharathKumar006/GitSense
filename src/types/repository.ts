@@ -29,6 +29,8 @@ export interface FileNode {
 
 export interface CodeChunk {
   id: string;
+  repoId?: string;
+  commitSha?: string;
   filePath: string;
   fileName: string;
   language: string;
@@ -37,6 +39,7 @@ export interface CodeChunk {
   content: string;
   type: "function" | "class" | "module" | "block";
   name?: string;
+  symbolName?: string;
   imports?: string[];
   exports?: string[];
   embedding?: number[];

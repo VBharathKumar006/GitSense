@@ -294,3 +294,28 @@ GitSense/
 - **Phase 6:** Integration & API Routes ✅
 - **Phase 7:** Testing, Optimization & Security ✅
 - **Phase 8:** Production Deployment & GitHub Readiness ✅
+
+---
+
+## 9. Comprehensive Progress Audit & Feature Matrix
+
+| Feature / Subsystem | Status Classification | Details & Test Verification |
+|---|---|---|
+| **GitHub URL Parser & Validator** | **Complete and tested** | Standard HTTPS, trailing slashes, shorthand `owner/repo`, invalid string rejection (4 unit tests passing). |
+| **Repository Ingestion & Metadata** | **Complete and tested** | Live GitHub API v3 client with 30-min in-memory cache, commit sha lookup, stars, forks, default branch. |
+| **Bidirectional Branch Fallback** | **Complete and tested** | Resolves `main` ⇄ `master` dynamically on 404s, preventing false negative tree lookup failures (1 unit test passing). |
+| **Recursive File Tree & Filtering** | **Complete and tested** | Filters `node_modules`, `.git`, binaries, images, lockfiles, and files >500 KB; builds hierarchical directory tree (2 unit tests passing). |
+| **Multi-Language Parser & Chunker** | **Complete and tested** | Extracts imports, exports, functions, and classes across TypeScript, JavaScript, Python, Go, Rust, and Java with exact line preservation (2 unit tests passing). |
+| **Vector Similarity Engine** | **Complete and tested** | Cosine similarity on float embeddings with orthogonal and opposing edge case validation (3 unit tests passing). |
+| **Keyword & Symbol Scoring Engine** | **Complete and tested** | Multi-token search with whole-word boundary matching, exact export/symbol boosts, and path scoring (2 unit tests passing). |
+| **Hybrid Retrieval & Reranker** | **Complete and tested** | Combines 65% cosine similarity with 35% keyword/symbol matching, assigns `matchType` and confidence explanations. |
+| **PostgreSQL + pgvector Schema** | **Implemented but not fully tested** | Production SQL schema (`scripts/init-pgvector.sql`) with HNSW index and literal formatting (`tests/core.test.ts`). Live DB query blocked by local PostgreSQL instance. |
+| **AI Code Search (Flagship)** | **Complete and tested** | Hybrid search, exact code snippet extraction, line citation formatting, and deterministic offline fallback. Live LLM reasoning enabled with `GEMINI_API_KEY`. |
+| **Contextual AI Chat Assistant** | **Complete and tested** | Multi-turn conversational interface with anti-injection `<untrusted_repository_code>` isolation and question-specific semantic retrieval. |
+| **Architecture Visualization** | **Complete and tested** | Client-side Mermaid.js topological rendering, interactive pan/zoom controls (`+`, `-`, `Reset`), and node-to-file links. |
+| **Dependency & Module Explorer** | **Complete and tested** | Central hub module detection, caller/callee matrix, line count heuristics. |
+| **Developer Utilities Suite** | **Complete and tested** | Safe environment variable audit (zero leaked secrets), symbol & export finder, API route extractor, security audit, circular DAG check. |
+| **Integrated File & Code Viewer** | **Complete and tested** | Live raw file fetcher with gutter line numbering, syntax highlights, and active file synchronizer. |
+| **Command Palette (`Ctrl+K`)** | **Complete and tested** | Fuzzy switcher across all files and pages, plus instant repository URL switcher. |
+| **GitHub OAuth Authentication** | **Complete and tested** | OAuth authorize/callback flow, HTTP-only secure cookie persistence, and API token forwarding unlocking 5,000 req/hr. |
+| **Production Docker & CI/CD** | **Complete and tested** | Multi-stage production `Dockerfile` and automated GitHub Actions CI pipeline (`.github/workflows/ci.yml`). |

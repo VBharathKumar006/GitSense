@@ -20,22 +20,37 @@ export function computeKeywordScore(query: string, chunk: CodeChunk): number {
 
   const contentLower = chunk.content.toLowerCase();
   const pathLower = chunk.filePath.toLowerCase();
-  const nameLower = (chunk.name || "").toLowerCase();
+  const nameLower = (chunk.symbolName || chunk.name || "").toLowerCase();
+  const fileNameLower = chunk.fileName.toLowerCase();
+  const exportsLower = (chunk.exports || []).map((e) => e.toLowerCase());
 
   let score = 0;
 
   for (const term of queryTerms) {
-    // Exact file or function name match gets heavy boost
-    if (nameLower.includes(term)) {
+    // Exact symbol or export match gets maximum boost
+    if (nameLower === term || exportsLower.includes(term)) {
+      score += 0.6;
+    } else if (nameLower.includes(term)) {
       score += 0.4;
     }
-    if (pathLower.includes(term)) {
+
+    // Exact filename match
+    if (fileNameLower === term || fileNameLower.startsWith(term)) {
+      score += 0.5;
+    } else if (pathLower.includes(term)) {
       score += 0.3;
     }
-    // Content occurrence
-    const count = (contentLower.match(new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g")) || []).length;
-    if (count > 0) {
-      score += Math.min(count * 0.1, 0.4);
+
+    // Content occurrence (whole-word boundary boost)
+    const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const wholeWordCount = (contentLower.match(new RegExp(`\\b${escaped}\\b`, "g")) || []).length;
+    if (wholeWordCount > 0) {
+      score += Math.min(wholeWordCount * 0.15, 0.5);
+    } else {
+      const partialCount = (contentLower.match(new RegExp(escaped, "g")) || []).length;
+      if (partialCount > 0) {
+        score += Math.min(partialCount * 0.08, 0.3);
+      }
     }
   }
 

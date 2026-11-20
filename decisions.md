@@ -13,6 +13,8 @@
 - **ADR-010:** GitHub OAuth Authentication & Token Forwarding (Accepted)
 - **ADR-011:** Fuzzy Command Palette Navigation (Ctrl+K) (Accepted)
 - **ADR-012:** Progressive Developer Diagnostics & Route Extractor (Accepted)
+- **ADR-013:** Multi-Language Symbol & Import Extraction (Accepted)
+- **ADR-014:** Question-Specific Semantic Retrieval for AI Chat (Accepted)
 
 ---
 
@@ -75,3 +77,13 @@
 - **Context:** Code understanding requires more than basic search: engineers need environment audits, API discovery, and circular dependency checks.
 - **Decision:** Provide a dedicated `/utilities` suite analyzing manifest files and ASTs for environment variables (without secret values), API routes (Next.js, Express, Fastify), security vulnerabilities, and circular DAG imports.
 - **Rationale:** Delivers actionable, instant insights for audits, PR reviews, and onboarding without third-party static analysis servers.
+
+### ADR-013: Multi-Language Symbol & Import Extraction
+- **Context:** Modern GitHub repositories span multiple languages beyond JavaScript/TypeScript, including Python, Go, Rust, and Java.
+- **Decision:** Implement dedicated language-aware lexical analyzers in `src/lib/indexing/parser.ts` extracting imports, exports, functions, and classes across TypeScript, JavaScript, Python (`def`/`class`), Go (`func`/`type struct`), Rust (`pub fn`/`pub struct`), and Java (`public class`/methods).
+- **Rationale:** Ensures exact symbol indexing, line preservation, and high-precision keyword ranking for polyglot repositories without requiring external tree-sitter C-binding compilers in serverless runtimes.
+
+### ADR-014: Question-Specific Semantic Retrieval for AI Chat
+- **Context:** Static chunk slicing (passing the first 5 indexed files) fails when developers ask domain-specific questions about deep modules.
+- **Decision:** In `/api/repo/[owner]/[name]/chat`, generate embeddings for the user's latest query, perform hybrid retrieval across the indexed vector store, and pass the top 5 question-relevant code chunks to Gemini 2.0 Flash.
+- **Rationale:** Grounds multi-turn conversational responses directly in the code logic that addresses the developer's specific question.
