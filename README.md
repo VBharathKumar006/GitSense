@@ -1,241 +1,227 @@
-# GitSense — AI-Powered GitHub Repository Intelligence Platform
+# GitSense
 
-GitSense is a production-grade web application that acts as an intelligent assistant for understanding, exploring, searching, and navigating GitHub repositories. Users paste any GitHub repository URL to receive an interactive, grounded architectural overview, hybrid semantic code search with exact line numbers, conversational repository AI chat with citations, Mermaid architecture visualization, and a dependency graph explorer.
+An AI-powered GitHub repository intelligence platform. Paste any public GitHub repository URL and get grounded AI code search, architecture visualization, conversational understanding, and a full repository overview with exact file and line citations.
 
-> **Core Principle:** Every answer about repository code is strictly grounded in actual indexed repository source files — never fabricated or assumed.
+**Core Principle:** Every answer about repository code is strictly grounded in actual indexed source files. Nothing is fabricated or assumed.
 
----
+![GitSense Landing Page](docs/screenshots/landing.png)
 
-## 🌟 Key Features
+## Features
 
-### 1. 🔍 AI Code Search (Core Feature)
-- Natural-language queries (e.g., *"Where are shopping cart operations implemented?"*, *"Which file handles Shopify GraphQL API queries?"*, *"Find product page dynamic routing logic"*).
-- **Grounded Verdict:** Direct explanation synthesized from retrieved code snippets.
-- **Precise Citations:** Exact file paths and line ranges (`L18–L42`).
-- **Hybrid Retrieval:** Blends vector similarity embeddings (Gemini `text-embedding-004`) with BM25 keyword and symbol scoring.
-- **Interactive Snippet Box:** Syntax-highlighted code block with 1-click clipboard copy.
+### AI Code Search (Core)
 
-### 2. 💬 Repository AI Chat
-- Multi-turn conversational assistant with conversation history.
-- Context badge indicating verified repository index grounding.
-- Answers cite specific files and functions with links straight to the code viewer.
-- Security-hardened prompt delimiters preventing repository code injection.
+Natural language queries against indexed repository code. Ask questions like "Where are API requests handled?" or "Which file manages authentication?" and receive a synthesized answer with exact file paths and line ranges (e.g. `L18-L42`), syntax-highlighted code snippets, and one-click copy.
 
-### 3. 📊 AI Repository Overview
-- High-level executive summary and purpose statement.
-- Tech stack and runtime detection (languages, frameworks, libraries, databases).
-- Architectural patterns breakdown (frontend/backend communication, caching, data storage, authentication).
-- Key modules breakdown with file counts, responsibilities, and main file links.
-- Verified execution entry points.
+Results are ranked using hybrid retrieval that blends vector similarity embeddings with keyword and symbol scoring.
 
-### 4. 🏗️ Architecture Visualization
-- Dynamic, interactive Mermaid diagrams for:
-  - **System & Module Architecture:** Component relationships between Next.js, RSC, Server Actions, and external APIs.
-  - **Cart & Execution Flow:** Sequence diagrams illustrating user actions down to database/API mutations.
-- Interactive node mapping linking directly to associated source files.
+### Repository AI Chat
 
-### 5. 🔗 Dependency & Module Explorer
-- Import/export relationship graph mapping incoming and outgoing dependencies.
-- Identifies architectural anchors (high-centrality hub modules).
-- Interactive Module Inspector showing caller/callee file trees.
+Multi-turn conversational assistant grounded in the indexed repository. Ask follow-up questions and the assistant maintains context across the conversation while citing specific files and functions.
 
-### 6. 📁 File Explorer & Integrated Code Viewer
-- Collapsible repository file tree explorer.
-- Integrated code viewer with line numbers and file statistics.
-- Direct navigation from search results, chat citations, and architecture nodes.
+![AI Chat](docs/screenshots/ai-chat.jpg)
 
-### 7. 🛠️ Progressive Developer Utilities & Security Guardrails
-- **Environment Variable Audit:** Detects expected configuration flags without leaking secrets.
-- **Symbol & Export Finder:** Instantly filters all exported classes, functions, and interfaces.
-- **API Route Extractor:** Discovers HTTP routes (Next.js, Express, Fastify) and maps handler files.
-- **Security Diagnostics:** Scans for hardcoded tokens, API keys, and insecure dependencies.
-- **Circular DAG Import Check:** Detects circular dependency chains across modules.
+### AI Repository Overview
 
-### 8. ⚡ Global Command Palette (`Ctrl+K`)
-- Instant keyboard shortcut dialog to fuzzy search files and navigate between all dashboard modules.
+Automated analysis of the repository's purpose, technology stack, runtime dependencies, architectural patterns, key modules, and execution entry points. Detected via manifest files and AST-level inspection.
 
-### 9. 📥 1-Click Markdown Architecture Export
-- Download comprehensive `.md` architecture briefs for PR descriptions, RFCs, and offline documentation.
+![Repository Overview](docs/screenshots/overview.jpg)
 
-### 10. 🔐 GitHub OAuth Authentication Flow
-- Seamless sign-in with GitHub increasing API limits to 5,000 req/hr and enabling private repository exploration.
+### Architecture Visualization
 
----
+Interactive Mermaid diagrams showing system architecture and execution flow. Nodes link directly to the corresponding source files in the code viewer.
 
-## 🛠️ Technology Stack
+### Dependency and Module Explorer
+
+Import/export relationship graph that maps incoming and outgoing dependencies. Identifies high-centrality hub modules and leaf modules with an interactive inspector.
+
+### File Explorer and Code Viewer
+
+Collapsible directory tree with an integrated code viewer. Supports line numbers, file statistics, and direct navigation from search results, chat citations, and architecture nodes.
+
+### Developer Utilities
+
+- Environment variable audit (detects expected configuration without leaking secrets)
+- Symbol and export finder across the indexed codebase
+- API route extractor for Next.js, Express, and Fastify projects
+- Security diagnostics for hardcoded tokens and insecure dependencies
+- Circular dependency detection across modules
+
+### Additional Capabilities
+
+- Global command palette (`Ctrl+K`) for instant file search and page navigation
+- One-click markdown architecture export for PR descriptions and documentation
+- GitHub OAuth authentication increasing API limits to 5,000 requests per hour
+- Dark and light theme support
+- Resilient Gemini model failover chain with automatic model switching
+
+## Technology Stack
 
 | Layer | Technology | Purpose |
-|---|---|---|
-| **Framework** | Next.js 15 (App Router) | Full-stack architecture, React Server Components, API routes |
-| **Language** | TypeScript (strict mode) | End-to-end type safety between backend and frontend |
-| **Styling** | Tailwind CSS v4 | Dark-first developer UI design system with CSS custom properties |
-| **UI System** | Radix UI primitives & Lucide React | Accessible buttons, cards, badges, inputs, tabs, icons |
-| **Diagrams** | Mermaid.js | Text-to-diagram client-side rendering for architectural maps |
-| **LLM & Embeddings** | Google Gemini 2.0 Flash & `text-embedding-004` | Fast, low-latency grounded reasoning and vector embeddings |
-| **Vector Store** | In-Memory Cosine Similarity Store | High-performance embedded vector indexing with hybrid fallback |
-| **GitHub Access** | GitHub REST v3 API | Repository metadata, recursive git trees, and raw file access |
-| **CI/CD & Deploy** | GitHub Actions & Docker / Vercel | Automated typecheck, unit testing, and containerized deployment |
+|-------|-----------|---------|
+| Framework | Next.js 15 (App Router) | Full-stack architecture with React Server Components and API routes |
+| Language | TypeScript (strict mode) | End-to-end type safety |
+| Styling | Tailwind CSS v4 | Dark-first developer UI with CSS custom properties |
+| UI | Lucide React | Icon system and accessible UI primitives |
+| Diagrams | Mermaid.js | Client-side architecture diagram rendering |
+| AI and Embeddings | Google Gemini (Flash Lite, gemini-embedding-001) | Grounded code reasoning and vector embeddings with automatic model failover |
+| Vector Store | In-memory cosine similarity engine | High-performance embedded vector indexing with hybrid retrieval |
+| GitHub Access | GitHub REST v3 API | Repository metadata, recursive git trees, and raw file content |
+| CI/CD | GitHub Actions, Docker, Vercel | Automated typecheck, testing, and deployment |
 
----
-
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
+
 - Node.js 20 or 22+
-- npm (or pnpm)
-- *(Optional)* Google Gemini API Key (`GEMINI_API_KEY`)
-- *(Optional)* GitHub Personal Access Token (`GITHUB_TOKEN` — increases API rate limits)
+- npm
+- (Recommended) Google Gemini API key for dynamic AI features
+- (Recommended) GitHub Personal Access Token for increased API rate limits
 
 ### Installation
 
 ```bash
-# Clone the repository
-git clone https://github.com/your-username/gitsense.git
-cd gitsense
-
-# Install dependencies
+git clone https://github.com/VBharathKumar006/GitSense.git
+cd GitSense
 npm install
-
-# Setup environment variables
 cp .env.example .env.local
 ```
 
-### Environment Configuration (`.env.local`)
+### Environment Configuration
+
+Edit `.env.local` with your keys:
 
 ```env
-# Optional: Google Gemini API key for dynamic AI generation
+# Recommended: Google Gemini API key for AI code search and chat
+# Get a free key at https://aistudio.google.com/app/apikey
 GEMINI_API_KEY=your_gemini_api_key_here
 
-# Optional: GitHub personal access token (increases rate limit to 5,000 req/hr)
+# Recommended: GitHub personal access token (increases rate limit to 5,000 req/hr)
+# Generate at https://github.com/settings/tokens (select "public_repo" scope)
 GITHUB_TOKEN=your_github_personal_access_token
 
-# Optional: GitHub OAuth App credentials (for browser OAuth login)
-GITHUB_CLIENT_ID=your_github_oauth_client_id
-GITHUB_CLIENT_SECRET=your_github_oauth_client_secret
+# Optional: GitHub OAuth App credentials for browser login
+GITHUB_CLIENT_ID=
+GITHUB_CLIENT_SECRET=
 
-# Optional: PostgreSQL + pgvector connection string for persistent vector index
-DATABASE_URL=postgresql://postgres:password@localhost:5432/gitsense
+# Optional: PostgreSQL + pgvector connection string for persistent vector storage
+DATABASE_URL=
 
 # Application URL
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
-> **Note:** If `GEMINI_API_KEY` or `DATABASE_URL` are not provided, GitSense automatically operates in zero-config offline mode with embedded cosine vector matching and AST-powered heuristics!
+If `GEMINI_API_KEY` is not provided, GitSense operates in offline mode using embedded cosine vector matching and AST-powered heuristics. AI-synthesized answers require a valid Gemini key.
 
-### Optional: PostgreSQL + pgvector Setup
-
-To enable persistent relational vector indexing with HNSW search:
-
-```bash
-# Initialize PostgreSQL schema with pgvector extension & HNSW cosine index
-psql -d gitsense -f scripts/init-pgvector.sql
-```
-
-### Development Server
+### Running Locally
 
 ```bash
 npm run dev
 ```
 
-Visit [http://localhost:3000](http://localhost:3000) to open GitSense.
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
----
+### Optional: PostgreSQL + pgvector
 
-## 🧪 Testing & Verification
+For persistent relational vector indexing:
 
-GitSense includes 14 native automated unit tests covering GitHub URL parsing, vector cosine similarity math, keyword frequency scoring, file filtering logic, hierarchical tree construction, pgvector literal formatting, bidirectional branch fallback resolution, and line-exact code chunking:
+```bash
+psql -d gitsense -f scripts/init-pgvector.sql
+```
+
+## Testing
+
+The project includes 16 automated unit tests covering URL parsing, vector cosine similarity, keyword scoring, file filtering, tree construction, pgvector formatting, branch fallback resolution, line-exact code chunking, multi-language symbol extraction, and an AI search evaluation benchmark.
 
 ```bash
 # Run unit tests
 npm test
 
-# Run TypeScript type check
+# TypeScript type check
 npm run typecheck
 
-# Build for production
+# Production build
 npm run build
 ```
 
----
+## Deployment
 
-## 🐳 Docker Deployment
+### Vercel (Recommended)
 
-A production-ready multi-stage Dockerfile is included:
+1. Push the repository to GitHub (already done).
+2. Import the project at [vercel.com/new](https://vercel.com/new).
+3. Add your environment variables (`GEMINI_API_KEY`, `GITHUB_TOKEN`, `NEXT_PUBLIC_APP_URL`) in the Vercel dashboard.
+4. Deploy.
+
+### Docker
+
+A multi-stage production Dockerfile is included:
 
 ```bash
-# Build Docker image
 docker build -t gitsense:latest .
-
-# Run container
 docker run -p 3000:3000 --env-file .env.local gitsense:latest
 ```
 
----
-
-## 🏛️ Project Directory Structure
+## Project Structure
 
 ```
 GitSense/
-├── .github/
-│   └── workflows/
-│       └── ci.yml               # GitHub Actions CI workflow
+├── .github/workflows/ci.yml              CI pipeline (typecheck, test, build)
+├── docs/screenshots/                      Application screenshots
+├── scripts/init-pgvector.sql              PostgreSQL + pgvector schema
 ├── src/
 │   ├── app/
 │   │   ├── api/
+│   │   │   ├── ai/health/route.ts         AI connectivity health check
+│   │   │   ├── auth/                      GitHub OAuth login, callback, logout
 │   │   │   └── repo/[owner]/[name]/
-│   │   │       ├── chat/route.ts      # Conversational repository AI endpoint
-│   │   │       ├── file/route.ts      # Raw file content retrieval
-│   │   │       ├── info/route.ts      # Repository metadata
-│   │   │       ├── overview/route.ts  # Architecture overview synthesis
-│   │   │       ├── search/route.ts    # Grounded code search endpoint
-│   │   │       └── tree/route.ts      # File tree recursive endpoint
+│   │   │       ├── architecture/route.ts  Architecture diagram synthesis
+│   │   │       ├── chat/route.ts          Conversational AI endpoint
+│   │   │       ├── dependencies/route.ts  Dependency analysis
+│   │   │       ├── file/route.ts          Raw file content retrieval
+│   │   │       ├── info/route.ts          Repository metadata
+│   │   │       ├── overview/route.ts      AI overview synthesis
+│   │   │       ├── search/route.ts        Grounded code search
+│   │   │       ├── tree/route.ts          Recursive file tree
+│   │   │       └── utilities/route.ts     Developer utility endpoints
 │   │   ├── repo/[owner]/[name]/
-│   │   │   ├── architecture/page.tsx  # Mermaid architecture visualizer
-│   │   │   ├── chat/page.tsx          # AI conversational assistant
-│   │   │   ├── dependencies/page.tsx  # Dependency relationship explorer
-│   │   │   ├── explorer/page.tsx      # File tree & integrated code viewer
-│   │   │   ├── search/page.tsx        # Grounded AI Code Search
-│   │   │   ├── layout.tsx             # 3-part responsive dashboard layout
-│   │   │   └── page.tsx               # Repository intelligence overview
-│   │   ├── globals.css                # Tailwind CSS v4 design tokens
-│   │   ├── layout.tsx                 # Root layout with dark/light ThemeProvider
-│   │   └── page.tsx                   # Premium landing page
+│   │   │   ├── page.tsx                   Repository overview dashboard
+│   │   │   ├── search/page.tsx            AI Code Search page
+│   │   │   ├── chat/page.tsx              AI Chat page
+│   │   │   ├── explorer/page.tsx          File explorer and code viewer
+│   │   │   ├── architecture/page.tsx      Architecture visualizer
+│   │   │   ├── dependencies/page.tsx      Dependency explorer
+│   │   │   ├── utilities/page.tsx         Developer utilities
+│   │   │   └── layout.tsx                 Dashboard layout with sidebar
+│   │   ├── page.tsx                       Landing page
+│   │   └── layout.tsx                     Root layout with theme provider
 │   ├── components/
-│   │   ├── landing/                   # Hero, Navbar, Features, HowItWorks, Footer
-│   │   ├── providers/                 # ThemeProvider (dark/light)
-│   │   └── ui/                        # Reusable UI primitives (Button, Card, Input, etc.)
+│   │   ├── dashboard/command-palette.tsx   Global Ctrl+K command palette
+│   │   ├── landing/                       Hero, Navbar, Features, Footer
+│   │   ├── providers/theme-provider.tsx   Dark/light theme management
+│   │   └── ui/                            Reusable UI primitives
 │   ├── lib/
-│   │   ├── ai/
-│   │   │   └── gemini.ts              # Gemini API client with prompt injection guards
-│   │   ├── github/
-│   │   │   └── api.ts                 # GitHub REST API client with memory cache
-│   │   ├── indexing/
-│   │   │   └── parser.ts              # Language-aware symbol & function chunker
-│   │   ├── search/
-│   │   │   └── vector-store.ts        # Cosine similarity & hybrid retrieval engine
-│   │   ├── demo-data.ts               # High-fidelity verified repository demo data
-│   │   └── utils.ts                   # Class name merger & formatting helpers
-│   └── types/
-│       └── repository.ts              # Core TypeScript domain models
-├── tests/
-│   └── core.test.ts                   # Native unit tests (Node.js test runner)
-├── Dockerfile                         # Multi-stage production container
-├── plan.md                            # Complete phased project plan
-├── decisions.md                       # Architectural decision records (ADRs)
-└── package.json                       # Scripts and dependencies
+│   │   ├── ai/gemini.ts                   Gemini API client with model failover
+│   │   ├── auth/github.ts                 OAuth token management
+│   │   ├── github/api.ts                  GitHub REST client with caching
+│   │   ├── indexing/analyzer.ts           Repository analysis pipeline
+│   │   ├── indexing/parser.ts             Multi-language symbol extractor
+│   │   ├── search/pgvector.ts             PostgreSQL vector queries
+│   │   └── search/vector-store.ts         Hybrid retrieval engine
+│   └── types/repository.ts               Core TypeScript domain models
+├── tests/core.test.ts                     16 unit tests (Node.js test runner)
+├── Dockerfile                             Multi-stage production container
+├── plan.md                                Project plan and progress audit
+└── decisions.md                           Architectural decision records
 ```
 
----
+## Security
 
-## 🔒 Security Architecture
+1. **No code execution.** Repository source files are analyzed as text only and never executed.
+2. **Prompt injection protection.** Repository code is wrapped in `<untrusted_repository_code>` delimiters with strict system instructions that reject any prompt overrides found inside source files.
+3. **API key isolation.** Gemini API keys and GitHub tokens remain server-side in API routes. They are never exposed to client browsers.
+4. **Input validation.** Regex-based URL validation and path traversal checks on all file requests.
+5. **Secret-safe environment handling.** `.env.local` is git-ignored. Only `.env.example` with placeholder documentation is tracked.
 
-1. **No Code Execution:** GitSense only analyzes AST and text syntax; repository code is never executed.
-2. **Prompt Injection Safeguards:** Repository source files are treated as untrusted data and wrapped in `<untrusted_repository_code>` delimiters with strict system instructions prohibiting prompt overrides.
-3. **API Key Isolation:** Gemini API keys and GitHub personal access tokens remain server-side in API routes and are never exposed to client browsers.
-4. **Input Sanitization:** Strict regex-based URL validation and path traversal checks on file requests.
+## License
 
----
-
-## 📄 License
-
-MIT License. Designed and engineered for developer productivity.
+MIT
