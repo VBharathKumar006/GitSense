@@ -149,14 +149,16 @@ export default function FileExplorerPage() {
   const owner = (routeParams?.owner as string) || "owner";
   const name = (routeParams?.name as string) || "repo";
 
+  const isDemo = owner.toLowerCase() === "vercel" && name.toLowerCase() === "commerce";
+
   const searchParams = useSearchParams();
-  const initialFile = searchParams.get("file") || "src/components/cart/actions.ts";
+  const initialFile = searchParams.get("file") || (isDemo ? "src/components/cart/actions.ts" : "README.md");
   const startLine = searchParams.get("start") ? parseInt(searchParams.get("start")!, 10) : null;
   const endLine = searchParams.get("end") ? parseInt(searchParams.get("end")!, 10) : null;
 
   const [selectedFile, setSelectedFile] = useState<string>(initialFile);
-  const [fileTree, setFileTree] = useState<FileNode[]>(demoFileTree);
-  const [fileContent, setFileContent] = useState<string>(SAMPLE_FILE_CONTENTS[initialFile] || "");
+  const [fileTree, setFileTree] = useState<FileNode[]>(isDemo ? demoFileTree : []);
+  const [fileContent, setFileContent] = useState<string>(isDemo ? (SAMPLE_FILE_CONTENTS[initialFile] || "") : "");
   const [loadingContent, setLoadingContent] = useState(false);
   const [openFolders, setOpenFolders] = useState<Record<string, boolean>>({
     src: true,
@@ -235,7 +237,7 @@ export default function FileExplorerPage() {
 
       // If live fetch fails, check sample demo content or provide formatted placeholder
       if (isMounted) {
-        if (SAMPLE_FILE_CONTENTS[selectedFile]) {
+        if (isDemo && SAMPLE_FILE_CONTENTS[selectedFile]) {
           setFileContent(SAMPLE_FILE_CONTENTS[selectedFile]);
         } else {
           setFileContent(

@@ -78,27 +78,48 @@ export function Hero() {
     }
   };
 
-  const startAnalysis = (owner: string, name: string) => {
+  const startAnalysis = async (owner: string, name: string) => {
     setTargetRepo({ owner, name });
     saveRecentRepo(owner, name);
     setIsAnalyzing(true);
     setAnalysisStep(0);
+    setError("");
 
-    let step = 0;
-    const interval = setInterval(() => {
-      step++;
-      if (step < ONBOARDING_STEPS.length) {
-        setAnalysisStep(step);
-      } else {
-        clearInterval(interval);
-        const destination = `/repo/${encodeURIComponent(owner)}/${encodeURIComponent(name)}`;
-        router.push(destination);
-        // Fallback direct navigation to guarantee transition
-        setTimeout(() => {
-          window.location.assign(destination);
-        }, 300);
-      }
-    }, 400);
+    const destination = `/repo/${encodeURIComponent(owner)}/${encodeURIComponent(name)}`;
+    const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+    try {
+      // Step 0: Validate accessibility & fetch metadata
+      setAnalysisStep(0);
+      const infoPromise = fetch(`/api/repo/${owner}/${name}/info`);
+      await Promise.all([infoPromise, sleep(400)]);
+
+      // Step 1: Ingest default branch & commit tree
+      setAnalysisStep(1);
+      const treePromise = fetch(`/api/repo/${owner}/${name}/tree`);
+      await Promise.all([treePromise, sleep(400)]);
+
+      // Step 2: Extract AST symbols & modules
+      setAnalysisStep(2);
+      const overviewPromise = fetch(`/api/repo/${owner}/${name}/overview`);
+      await Promise.all([overviewPromise, sleep(400)]);
+
+      // Step 3: Synthesize module graph & vector embeddings
+      setAnalysisStep(3);
+      await sleep(400);
+
+      // Step 4: Complete & navigate
+      setAnalysisStep(4);
+      await sleep(300);
+
+      window.location.href = destination;
+    } catch {
+      // Fallback navigation
+      setAnalysisStep(4);
+      setTimeout(() => {
+        window.location.href = destination;
+      }, 300);
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -199,8 +220,16 @@ export function Hero() {
         <div className="mt-10 w-full max-w-xl rounded-2xl border border-primary/30 bg-card/90 p-6 shadow-lg backdrop-blur-md space-y-4">
           <div className="flex items-center justify-between border-b border-border/60 pb-3">
             <div className="flex items-center gap-2 font-mono text-sm font-semibold text-foreground">
-              <Loader2 className="h-4 w-4 text-primary animate-spin" />
-              <span>Analyzing Codebase Architecture</span>
+              {analysisStep === ONBOARDING_STEPS.length - 1 ? (
+                <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+              ) : (
+                <Loader2 className="h-4 w-4 text-primary animate-spin" />
+              )}
+              <span>
+                {analysisStep === ONBOARDING_STEPS.length - 1
+                  ? "Codebase Analysis Complete"
+                  : "Analyzing Codebase Architecture"}
+              </span>
             </div>
             <span className="text-xs font-mono text-primary font-semibold">
               Step {analysisStep + 1} of {ONBOARDING_STEPS.length}

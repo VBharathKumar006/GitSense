@@ -51,15 +51,38 @@ export default function RepoDashboardLayout({ children }: { children: React.Reac
   }, []);
 
   useEffect(() => {
-    if (owner !== demoRepository.owner || name !== demoRepository.name) {
-      setRepo((prev) => ({
-        ...prev,
-        owner,
-        name,
-        fullName: `${owner}/${name}`,
-        url: `https://github.com/${owner}/${name}`,
-      }));
+    let isMounted = true;
+    async function loadRepoInfo() {
+      try {
+        const res = await fetch(`/api/repo/${owner}/${name}/info`);
+        if (res.ok) {
+          const json = await res.json();
+          if (json.data && isMounted) {
+            setRepo(json.data);
+            return;
+          }
+        }
+      } catch {
+        // Fallback
+      }
+
+      if (isMounted) {
+        setRepo((prev) => ({
+          ...prev,
+          owner,
+          name,
+          fullName: `${owner}/${name}`,
+          url: `https://github.com/${owner}/${name}`,
+          stars: owner === demoRepository.owner ? demoRepository.stars : 0,
+          forks: owner === demoRepository.owner ? demoRepository.forks : 0,
+        }));
+      }
     }
+
+    loadRepoInfo();
+    return () => {
+      isMounted = false;
+    };
   }, [owner, name]);
 
   const navItems = [

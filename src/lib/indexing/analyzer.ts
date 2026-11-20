@@ -8,7 +8,7 @@ import {
   TechStackItem,
   ModuleInfo,
 } from "@/types/repository";
-import { GitHubFileItem, fetchRepoFileTree, fetchFileContent } from "@/lib/github/api";
+import { GitHubFileItem, fetchRepoFileTree, fetchFileContent, fetchRepoMetadata, getKnownDefaultBranch } from "@/lib/github/api";
 import { chunkCodeFile, detectLanguage } from "@/lib/indexing/parser";
 import { getRepositoryStore } from "@/lib/search/vector-store";
 import { demoOverview, demoArchitectureDiagrams, demoDependencies } from "@/lib/demo-data";
@@ -120,7 +120,8 @@ const KNOWN_PACKAGES: Record<string, { category: TechStackItem["category"]; desc
 export async function analyzeRepository(
   owner: string,
   repo: string,
-  defaultBranch = "main"
+  defaultBranch = "main",
+  authToken?: string
 ): Promise<RepoAnalysisResult> {
   const repoKey = `${owner}/${repo}`.toLowerCase();
   const cached = analysisCache.get(repoKey);
@@ -128,15 +129,26 @@ export async function analyzeRepository(
     return cached.data;
   }
 
+  // Resolve true default branch via metadata or known branch cache
+  let branchToUse = getKnownDefaultBranch(owner, repo) || defaultBranch;
+  try {
+    const meta = await fetchRepoMetadata(owner, repo, authToken);
+    if (meta.defaultBranch) {
+      branchToUse = meta.defaultBranch;
+    }
+  } catch {
+    // Non-fatal if metadata fetch fails
+  }
+
   let items: GitHubFileItem[] = [];
   try {
-    items = await fetchRepoFileTree(owner, repo, defaultBranch);
+    items = await fetchRepoFileTree(owner, repo, branchToUse, authToken);
   } catch {
     // If GitHub API tree lookup fails, return default structured fallback
     items = [];
   }
 
-  // If no files retrieved (e.g. rate limit or demo repo), use demo dataset fallback
+  // If no files retrieved (e.g. rate limit or demo repo), handle fallback
   if (items.length === 0) {
     if (owner.toLowerCase() === "vercel" && repo.toLowerCase() === "commerce") {
       const demoResult: RepoAnalysisResult = {
@@ -173,6 +185,25 @@ export async function analyzeRepository(
         chunks: [],
       };
       return demoResult;
+    }
+
+    // Try fetching README or package.json directly for any other repo
+    const fallbackFiles = ["package.json", "README.md", "src/index.ts", "src/main.ts", "src/App.tsx", "main.py"];
+    for (const f of fallbackFiles) {
+      try {
+        const content = await fetchFileContent(owner, repo, f, branchToUse, authToken);
+        if (content) {
+          items.push({
+            path: f,
+            mode: "100644",
+            type: "blob",
+            sha: "raw",
+            url: `https://raw.githubusercontent.com/${owner}/${repo}/${branchToUse}/${f}`,
+          });
+        }
+      } catch {
+        // Probe non-fatal
+      }
     }
   }
 
@@ -227,7 +258,7 @@ export async function analyzeRepository(
   const pkgPath = filePaths.find((f) => f === "package.json");
   if (pkgPath) {
     try {
-      packageJsonContent = await fetchFileContent(owner, repo, pkgPath, defaultBranch);
+      packageJsonContent = await fetchFileContent(owner, repo, pkgPath, branchToUse, authToken);
       const pkg = JSON.parse(packageJsonContent);
       const allDeps = { ...(pkg.dependencies || {}), ...(pkg.devDependencies || {}) };
 
@@ -423,18 +454,34 @@ export async function analyzeRepository(
   ];
 
   // 11. Fetch & Index Top Chunks for Real Vector Search
-  const topFilesToIndex = filePaths.slice(0, 15);
+  const topFilesToIndex = filePaths.slice(0, 20);
   const store = getRepositoryStore(`${owner}/${repo}`.toLowerCase());
   const indexedChunks: CodeChunk[] = [];
 
   for (const fp of topFilesToIndex) {
     try {
-      const content = await fetchFileContent(owner, repo, fp, defaultBranch);
+      const content = await fetchFileContent(owner, repo, fp, branchToUse, authToken);
       const chunks = chunkCodeFile(fp, content, 60, 8);
       indexedChunks.push(...chunks);
     } catch {
       // Chunking non-fatal
     }
+  }
+
+  // If no chunks were created from live files, synthesize a repo-specific chunk
+  if (indexedChunks.length === 0) {
+    const summaryChunk: CodeChunk = {
+      id: `${owner}/${repo}#overview`,
+      filePath: pkgPath || "README.md",
+      fileName: pkgPath || "README.md",
+      language: primaryLang,
+      startLine: 1,
+      endLine: 30,
+      content: `// Repository: ${owner}/${repo}\n// Primary Language: ${primaryLang}\n// Detected Entry Points: ${detectedEntryPoints.map(e => e.path).join(", ") || "src/index"}\n// Architecture: Modular ${primaryLang} application\n`,
+      type: "module",
+      name: `${owner}/${repo}`,
+    };
+    indexedChunks.push(summaryChunk);
   }
 
   if (indexedChunks.length > 0) {

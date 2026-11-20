@@ -72,8 +72,13 @@ const IGNORED_FILENAMES = new Set([
 const metadataCache = new Map<string, { data: GitHubRepoMetadata; expires: number }>();
 const treeCache = new Map<string, { data: GitHubFileItem[]; expires: number }>();
 const fileContentCache = new Map<string, { data: string; expires: number }>();
+const knownBranchCache = new Map<string, string>();
 
 const CACHE_TTL_MS = 1000 * 60 * 30; // 30 minutes
+
+export function getKnownDefaultBranch(owner: string, repo: string): string | undefined {
+  return knownBranchCache.get(`${owner}/${repo}`.toLowerCase());
+}
 
 function getAuthHeaders(customToken?: string): HeadersInit {
   const token = customToken || process.env.GITHUB_TOKEN;
@@ -167,6 +172,7 @@ export async function fetchRepoMetadata(
     commitSha: commitSha || undefined,
   };
 
+  knownBranchCache.set(cacheKey, raw.default_branch);
   metadataCache.set(cacheKey, { data: metadata, expires: Date.now() + CACHE_TTL_MS });
   return metadata;
 }
@@ -177,25 +183,90 @@ export async function fetchRepoFileTree(
   defaultBranch = "main",
   authToken?: string
 ): Promise<GitHubFileItem[]> {
-  const cacheKey = `${owner}/${repo}/${defaultBranch}`.toLowerCase();
+  const repoKey = `${owner}/${repo}`.toLowerCase();
+  const effectiveBranch = knownBranchCache.get(repoKey) || defaultBranch;
+  const cacheKey = `${owner}/${repo}/${effectiveBranch}`.toLowerCase();
   const cached = treeCache.get(cacheKey);
   if (cached && cached.expires > Date.now()) {
     return cached.data;
   }
 
-  const res = await fetch(
-    `https://api.github.com/repos/${owner}/${repo}/git/trees/${defaultBranch}?recursive=1`,
-    {
-      headers: getAuthHeaders(authToken),
-      next: { revalidate: 1800 },
-    }
-  );
-
-  if (!res.ok) {
-    throw new Error(`Failed to fetch file tree for ${owner}/${repo}: ${res.statusText}`);
+  // Helper to fetch git tree for a given branch
+  async function tryFetchTree(branch: string) {
+    const res = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`,
+      {
+        headers: getAuthHeaders(authToken),
+        next: { revalidate: 1800 },
+      }
+    );
+    if (!res.ok) return null;
+    return res.json();
   }
 
-  const data = await res.json();
+  let data = await tryFetchTree(effectiveBranch);
+
+  // If first attempt failed with 404, try alternative default branch (main <-> master)
+  if (!data) {
+    const alternativeBranch = effectiveBranch === "main" ? "master" : "main";
+    data = await tryFetchTree(alternativeBranch);
+    if (data) {
+      knownBranchCache.set(repoKey, alternativeBranch);
+    }
+  }
+
+  if (!data || !data.tree) {
+    // If GitHub API failed or was rate limited, try raw probe for standard files
+    const probeFiles = [
+      "package.json",
+      "README.md",
+      "tsconfig.json",
+      "src/index.ts",
+      "src/index.js",
+      "src/main.ts",
+      "src/main.js",
+      "src/App.tsx",
+      "src/app/page.tsx",
+      "src/app/layout.tsx",
+      "app/page.tsx",
+      "app/layout.tsx",
+      "main.py",
+      "app.py",
+    ];
+
+    const probeBranches = [effectiveBranch, "main", "master"];
+    const foundItems: GitHubFileItem[] = [];
+
+    for (const b of Array.from(new Set(probeBranches))) {
+      for (const fp of probeFiles) {
+        try {
+          const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${b}/${fp}`;
+          const res = await fetch(rawUrl, { method: "HEAD" });
+          if (res.ok) {
+            foundItems.push({
+              path: fp,
+              mode: "100644",
+              type: "blob",
+              sha: "probed",
+              url: rawUrl,
+            });
+            knownBranchCache.set(repoKey, b);
+          }
+        } catch {
+          // Probe non-fatal
+        }
+      }
+      if (foundItems.length > 0) break;
+    }
+
+    if (foundItems.length > 0) {
+      treeCache.set(cacheKey, { data: foundItems, expires: Date.now() + CACHE_TTL_MS });
+      return foundItems;
+    }
+
+    throw new Error(`Failed to fetch file tree for ${owner}/${repo}`);
+  }
+
   const rawItems: GitHubFileItem[] = data.tree || [];
 
   // Filter out unwanted files and directories
@@ -229,18 +300,34 @@ export async function fetchFileContent(
   branch = "main",
   authToken?: string
 ): Promise<string> {
-  const cacheKey = `${owner}/${repo}/${branch}/${filePath}`.toLowerCase();
+  const repoKey = `${owner}/${repo}`.toLowerCase();
+  const effectiveBranch = knownBranchCache.get(repoKey) || branch;
+  const cacheKey = `${owner}/${repo}/${effectiveBranch}/${filePath}`.toLowerCase();
   const cached = fileContentCache.get(cacheKey);
   if (cached && cached.expires > Date.now()) {
     return cached.data;
   }
 
-  // Fetch raw file content directly from raw.githubusercontent.com for maximum speed
-  const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${filePath}`;
   const token = authToken || process.env.GITHUB_TOKEN;
-  const res = await fetch(rawUrl, {
-    headers: token ? { Authorization: `token ${token}` } : {},
-  });
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers.Authorization = `token ${token}`;
+  }
+
+  // Try fetching on effective branch
+  let rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${effectiveBranch}/${filePath}`;
+  let res = await fetch(rawUrl, { headers });
+
+  // If 404, try alternative branch
+  if (!res.ok && res.status === 404) {
+    const alternativeBranch = effectiveBranch === "main" ? "master" : "main";
+    rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${alternativeBranch}/${filePath}`;
+    const altRes = await fetch(rawUrl, { headers });
+    if (altRes.ok) {
+      res = altRes;
+      knownBranchCache.set(repoKey, alternativeBranch);
+    }
+  }
 
   if (!res.ok) {
     throw new Error(`Failed to fetch file content for ${filePath} (${res.status})`);
