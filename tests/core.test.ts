@@ -193,3 +193,58 @@ test("pgvector Literal Formatting - formats and parses vector float arrays", () 
   const parsed = parseVectorLiteral(literal);
   assert.deepEqual(parsed, original);
 });
+
+// 7. Bidirectional branch fallback tests
+function getAlternativeBranch(branch: string): string {
+  return branch === "main" ? "master" : "main";
+}
+
+test("Branch Fallback Resolver - alternates between main and master", () => {
+  assert.equal(getAlternativeBranch("main"), "master");
+  assert.equal(getAlternativeBranch("master"), "main");
+  assert.equal(getAlternativeBranch("develop"), "main");
+});
+
+// 8. Code chunking and exact line preservation
+function simpleChunker(code: string) {
+  const lines = code.split("\n");
+  const chunks: { start: number; end: number; content: string }[] = [];
+  let currentStart = 1;
+
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].startsWith("export function") && i > 0) {
+      chunks.push({
+        start: currentStart,
+        end: i,
+        content: lines.slice(currentStart - 1, i).join("\n"),
+      });
+      currentStart = i + 1;
+    }
+  }
+  chunks.push({
+    start: currentStart,
+    end: lines.length,
+    content: lines.slice(currentStart - 1).join("\n"),
+  });
+  return chunks;
+}
+
+test("Code Chunking - preserves exact line numbering and boundaries", () => {
+  const sampleCode = `import { foo } from 'bar';
+
+export function first() {
+  return 1;
+}
+
+export function second() {
+  return 2;
+}`;
+  const chunks = simpleChunker(sampleCode);
+  assert.equal(chunks.length, 3);
+  assert.equal(chunks[0].start, 1);
+  assert.equal(chunks[0].end, 2);
+  assert.equal(chunks[1].start, 3);
+  assert.equal(chunks[1].end, 6);
+  assert.equal(chunks[2].start, 7);
+  assert.equal(chunks[2].end, 9);
+});
