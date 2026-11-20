@@ -75,8 +75,8 @@ const fileContentCache = new Map<string, { data: string; expires: number }>();
 
 const CACHE_TTL_MS = 1000 * 60 * 30; // 30 minutes
 
-function getAuthHeaders(): HeadersInit {
-  const token = process.env.GITHUB_TOKEN;
+function getAuthHeaders(customToken?: string): HeadersInit {
+  const token = customToken || process.env.GITHUB_TOKEN;
   const headers: Record<string, string> = {
     Accept: "application/vnd.github.v3+json",
     "User-Agent": "GitSense-Platform",
@@ -107,7 +107,11 @@ export function parseGitHubRepoUrl(input: string): { owner: string; name: string
   return null;
 }
 
-export async function fetchRepoMetadata(owner: string, repo: string): Promise<GitHubRepoMetadata> {
+export async function fetchRepoMetadata(
+  owner: string,
+  repo: string,
+  authToken?: string
+): Promise<GitHubRepoMetadata> {
   const cacheKey = `${owner}/${repo}`.toLowerCase();
   const cached = metadataCache.get(cacheKey);
   if (cached && cached.expires > Date.now()) {
@@ -115,7 +119,7 @@ export async function fetchRepoMetadata(owner: string, repo: string): Promise<Gi
   }
 
   const res = await fetch(`https://api.github.com/repos/${owner}/${repo}`, {
-    headers: getAuthHeaders(),
+    headers: getAuthHeaders(authToken),
     next: { revalidate: 1800 },
   });
 
@@ -170,7 +174,8 @@ export async function fetchRepoMetadata(owner: string, repo: string): Promise<Gi
 export async function fetchRepoFileTree(
   owner: string,
   repo: string,
-  defaultBranch = "main"
+  defaultBranch = "main",
+  authToken?: string
 ): Promise<GitHubFileItem[]> {
   const cacheKey = `${owner}/${repo}/${defaultBranch}`.toLowerCase();
   const cached = treeCache.get(cacheKey);
@@ -181,7 +186,7 @@ export async function fetchRepoFileTree(
   const res = await fetch(
     `https://api.github.com/repos/${owner}/${repo}/git/trees/${defaultBranch}?recursive=1`,
     {
-      headers: getAuthHeaders(),
+      headers: getAuthHeaders(authToken),
       next: { revalidate: 1800 },
     }
   );
@@ -221,7 +226,8 @@ export async function fetchFileContent(
   owner: string,
   repo: string,
   filePath: string,
-  branch = "main"
+  branch = "main",
+  authToken?: string
 ): Promise<string> {
   const cacheKey = `${owner}/${repo}/${branch}/${filePath}`.toLowerCase();
   const cached = fileContentCache.get(cacheKey);
@@ -231,8 +237,9 @@ export async function fetchFileContent(
 
   // Fetch raw file content directly from raw.githubusercontent.com for maximum speed
   const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${filePath}`;
+  const token = authToken || process.env.GITHUB_TOKEN;
   const res = await fetch(rawUrl, {
-    headers: process.env.GITHUB_TOKEN ? { Authorization: `token ${process.env.GITHUB_TOKEN}` } : {},
+    headers: token ? { Authorization: `token ${token}` } : {},
   });
 
   if (!res.ok) {

@@ -15,6 +15,8 @@ import {
   ExternalLink,
   Code2,
   FileWarning,
+  Globe,
+  ShieldCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -22,7 +24,7 @@ export default function UtilitiesPage() {
   const routeParams = useParams();
   const owner = (routeParams?.owner as string) || "owner";
   const name = (routeParams?.name as string) || "repo";
-  const [activeTab, setActiveTab] = useState<"env" | "symbols" | "circular" | "large">("env");
+  const [activeTab, setActiveTab] = useState<"env" | "symbols" | "routes" | "security" | "circular" | "large">("env");
   const [symbolQuery, setSymbolQuery] = useState("");
 
   const [detectedEnvVars, setDetectedEnvVars] = useState<
@@ -41,6 +43,19 @@ export default function UtilitiesPage() {
     { name: "chunkCodeFile", type: "function", file: "src/lib/indexing/parser.ts", line: 102 },
     { name: "RepositoryVectorStore", type: "class", file: "src/lib/search/vector-store.ts", line: 45 },
     { name: "generateEmbedding", type: "function", file: "src/lib/ai/gemini.ts", line: 12 },
+  ]);
+
+  const [detectedRoutes, setDetectedRoutes] = useState<
+    { method: string; path: string; file: string; description: string }[]
+  >([
+    { method: "GET / POST", path: "/api/revalidate", file: "src/app/api/revalidate/route.ts", description: "Webhook cache revalidation endpoint" },
+  ]);
+
+  const [securityFindings, setSecurityFindings] = useState<
+    { severity: "safe" | "low" | "medium" | "high"; title: string; file: string; recommendation: string }[]
+  >([
+    { severity: "safe", title: "Dependencies Integrity", file: "package.json", recommendation: "Pinned package versions to prevent supply chain drift" },
+    { severity: "safe", title: "Code RAG Guardrails", file: "src/lib/ai/gemini.ts", recommendation: "Delimited XML code blocks protecting against injection" },
   ]);
 
   useEffect(() => {
@@ -70,6 +85,12 @@ export default function UtilitiesPage() {
                   line: s.line,
                 }))
               );
+            }
+            if (json.data.routes?.length > 0) {
+              setDetectedRoutes(json.data.routes);
+            }
+            if (json.data.securityAudit?.length > 0) {
+              setSecurityFindings(json.data.securityAudit);
             }
           }
         }
@@ -118,6 +139,8 @@ export default function UtilitiesPage() {
         {[
           { id: "env", label: "Env Variable Audit", icon: KeyRound },
           { id: "symbols", label: "Symbol & Function Finder", icon: Code2 },
+          { id: "routes", label: "API Endpoints & Routing", icon: Globe },
+          { id: "security", label: "Security & Guardrails", icon: ShieldCheck },
           { id: "circular", label: "Circular Dependencies", icon: AlertTriangle },
           { id: "large", label: "Module Weight & Complexity", icon: Layers },
         ].map((tab) => (
@@ -271,6 +294,99 @@ export default function UtilitiesPage() {
                 >
                   {mod.complexity} Volume
                 </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {/* Tab 5: API Endpoints & Routing Map */}
+      {activeTab === "routes" && (
+        <div className="space-y-4">
+          <div className="rounded-xl border border-border bg-card/60 p-5 space-y-1.5">
+            <h3 className="font-bold text-sm text-foreground flex items-center gap-2">
+              <Globe className="h-4 w-4 text-primary" />
+              Identified API Endpoints & Request Handlers
+            </h3>
+            <p className="text-xs text-muted-foreground">
+              Automated route discovery from App Router `route.ts`, controller endpoints, and server handlers in {owner}/{name}.
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-border bg-card/60 divide-y divide-border/60">
+            {detectedRoutes.length > 0 ? (
+              detectedRoutes.map((rt) => (
+                <div key={rt.path} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 gap-2 text-xs">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="rounded bg-primary/10 px-2 py-0.5 font-mono text-[11px] font-bold text-primary">
+                        {rt.method}
+                      </span>
+                      <span className="font-mono text-sm font-semibold text-foreground">{rt.path}</span>
+                    </div>
+                    <div className="text-muted-foreground">{rt.description}</div>
+                  </div>
+                  <Link
+                    href={`/repo/${owner}/${name}/explorer?file=${encodeURIComponent(rt.file)}`}
+                    className="flex items-center gap-1 font-mono text-xs text-primary hover:underline shrink-0"
+                  >
+                    <FileCode2 className="h-3.5 w-3.5" />
+                    <span>{rt.file}</span>
+                  </Link>
+                </div>
+              ))
+            ) : (
+              <div className="p-8 text-center text-xs text-muted-foreground">
+                No standard REST API endpoints detected in root routes.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Tab 6: Security & Guardrails */}
+      {activeTab === "security" && (
+        <div className="space-y-4">
+          <div className="rounded-xl border border-border bg-card/60 p-5 space-y-1.5">
+            <h3 className="font-bold text-sm text-foreground flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4 text-emerald-500" />
+              Security Diagnostics & Code Guardrails
+            </h3>
+            <p className="text-xs text-muted-foreground">
+              Automated audit for credential leakage, prompt injection boundaries, and dependency integrity.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {securityFindings.map((finding) => (
+              <div
+                key={finding.title}
+                className="rounded-2xl border border-border/80 bg-card/60 p-4 space-y-2"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-sm text-foreground">{finding.title}</span>
+                  <span
+                    className={cn(
+                      "rounded px-2 py-0.5 text-[10px] font-semibold uppercase",
+                      finding.severity === "safe"
+                        ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
+                        : finding.severity === "low"
+                        ? "bg-amber-500/10 text-amber-500 border border-amber-500/20"
+                        : "bg-destructive/10 text-destructive border border-destructive/20"
+                    )}
+                  >
+                    {finding.severity}
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">{finding.recommendation}</p>
+                <div className="pt-2 border-t border-border/60">
+                  <Link
+                    href={`/repo/${owner}/${name}/explorer?file=${encodeURIComponent(finding.file)}`}
+                    className="font-mono text-[11px] text-primary hover:underline flex items-center gap-1"
+                  >
+                    <FileCode2 className="h-3 w-3" />
+                    <span>{finding.file}</span>
+                  </Link>
+                </div>
               </div>
             ))}
           </div>

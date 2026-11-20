@@ -27,6 +27,7 @@ export default function ArchitecturePage() {
   const [activeTab, setActiveTab] = useState<number>(0);
   const [svgOutput, setSvgOutput] = useState<string>("");
   const [renderError, setRenderError] = useState<string>("");
+  const [zoom, setZoom] = useState<number>(100);
 
   useEffect(() => {
     let isMounted = true;
@@ -127,15 +128,46 @@ export default function ArchitecturePage() {
               {currentDiagram.description}
             </p>
           </div>
-          <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary self-start sm:self-auto">
-            Mermaid Directed Graph
-          </span>
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            <div className="flex items-center rounded-lg border border-border bg-background p-1">
+              <button
+                onClick={() => setZoom((prev) => Math.max(prev - 15, 50))}
+                className="rounded p-1 hover:bg-muted text-xs font-bold px-2 text-foreground"
+                title="Zoom Out"
+              >
+                -
+              </button>
+              <span className="font-mono text-[11px] px-2 text-muted-foreground">{zoom}%</span>
+              <button
+                onClick={() => setZoom((prev) => Math.min(prev + 15, 200))}
+                className="rounded p-1 hover:bg-muted text-xs font-bold px-2 text-foreground"
+                title="Zoom In"
+              >
+                +
+              </button>
+              <button
+                onClick={() => setZoom(100)}
+                className="rounded p-1 hover:bg-muted text-[10px] text-muted-foreground px-1.5"
+                title="Reset Zoom"
+              >
+                Reset
+              </button>
+            </div>
+            <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
+              Mermaid Topology
+            </span>
+          </div>
         </div>
 
         {/* Diagram Render Canvas */}
         <div className="relative min-h-[400px] flex items-center justify-center p-6 bg-background/50 overflow-auto">
           {svgOutput ? (
             <div
+              style={{
+                transform: `scale(${zoom / 100})`,
+                transformOrigin: "center center",
+                transition: "transform 0.15s ease",
+              }}
               className="w-full flex justify-center [&_svg]:max-w-full [&_svg]:h-auto"
               dangerouslySetInnerHTML={{ __html: svgOutput }}
             />
