@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "predev": "node -e \"const fs = require('fs'); try { if (fs.existsSync('.next')) fs.rmSync('.next', { recursive: true, force: true }); } catch {}\"",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
