@@ -85,5 +85,14 @@
 
 ### ADR-014: Question-Specific Semantic Retrieval for AI Chat
 - **Context:** Static chunk slicing (passing the first 5 indexed files) fails when developers ask domain-specific questions about deep modules.
-- **Decision:** In `/api/repo/[owner]/[name]/chat`, generate embeddings for the user's latest query, perform hybrid retrieval across the indexed vector store, and pass the top 5 question-relevant code chunks to Gemini 2.0 Flash.
+- **Decision:** In `/api/repo/[owner]/[name]/chat`, generate embeddings for the user's latest query, perform hybrid retrieval across the indexed vector store, and pass the top 5 question-relevant code chunks to Gemini.
 - **Rationale:** Grounds multi-turn conversational responses directly in the code logic that addresses the developer's specific question.
+
+### ADR-015: Resilient Gemini Model Failover Chain & Diagnostic Route
+- **Context:** Google Generative Language API model lifecycles vary (e.g. legacy flash models return HTTP 404, or encounter temporary 503 high-demand spikes). Hardcoding a single model caused silent fallbacks to static offline templates when the user had entered valid API keys.
+- **Decision:** 
+  1. Implement a prioritized model failover chain in `src/lib/ai/gemini.ts` (`gemini-flash-lite-latest`, `gemini-3.5-flash-lite`, `gemini-3.8-flash`, `gemini-2.5-flash-lite`).
+  2. Migrate embedding generation to the Google API v1 `models/gemini-embedding-001` endpoint with automatic fallback.
+  3. Ensure `/api/repo/[owner]/[name]/search` feeds query-matched code chunks into Gemini synthesis rather than top-of-store chunks.
+  4. Create a dedicated health check route `/api/ai/health` to provide real-time status and diagnostics.
+- **Rationale:** Guarantees zero downtime, eliminates silent fallback bugs, and ensures dynamic AI code reasoning runs reliably with verified operational models.

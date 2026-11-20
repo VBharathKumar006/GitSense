@@ -82,8 +82,8 @@ GitSense is a production-grade web application that acts as an intelligent assis
 │  │ GitHub API       │ Code Parser &    │ Hybrid Vector Store         │ │
 │  │ Client & Cache   │ Chunker (AST)    │ (Cosine Sim + BM25 Scoring) │ │
 │  ├──────────────────┴──────────────────┴─────────────────────────────┤ │
-│  │ Gemini 2.0 Flash & text-embedding-004 Service                    │ │
-│  │ (Prompt injection protection, untrusted code delimiters)          │ │
+│  │ Gemini Flash & Embedding Service (Dynamic Model Failover Chain)   │ │
+│  │ (gemini-flash-lite-latest, gemini-3.5-flash-lite, gemini-embedding)│ │
 │  └───────────────────────────────────────────────────────────────────┘ │
 └────────────────────────────────────────────────────────────────────────┘
 ```
