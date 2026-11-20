@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { chatWithRepository } from "@/lib/ai/gemini";
+import { chatWithRepository, generateEmbedding } from "@/lib/ai/gemini";
 import { getRepositoryStore } from "@/lib/search/vector-store";
 import { analyzeRepository } from "@/lib/indexing/analyzer";
 import { getServerGitHubToken } from "@/lib/auth/github";
@@ -58,7 +58,30 @@ export async function POST(
       }
     }
 
-    const topChunks = store.getChunks().slice(0, 5);
+    // Retrieve user query from the last message to find the most relevant chunks
+    const lastUserMessage = messages[messages.length - 1]?.content || "";
+    let queryEmbedding: number[] | undefined;
+    try {
+      const emb = await generateEmbedding(lastUserMessage);
+      if (emb) queryEmbedding = emb;
+    } catch {
+      // Non-fatal
+    }
+
+    const matchedResults = store.search(lastUserMessage, queryEmbedding, 5);
+    const topChunks: CodeChunk[] = matchedResults.length > 0
+      ? matchedResults.map((r) => ({
+          id: r.id,
+          filePath: r.filePath,
+          fileName: r.fileName,
+          language: r.language,
+          startLine: r.startLine,
+          endLine: r.endLine,
+          content: r.snippet,
+          type: "function" as const,
+          name: r.fileName,
+        }))
+      : store.getChunks().slice(0, 5);
 
     const { reply, citations } = await chatWithRepository(
       messages,
