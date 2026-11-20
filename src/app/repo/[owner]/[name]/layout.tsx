@@ -38,6 +38,28 @@ export default function RepoDashboardLayout({ children }: { children: React.Reac
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [repo, setRepo] = useState<Repository>(demoRepository);
+  const [authUser, setAuthUser] = useState<{ login: string; avatar_url: string } | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function checkAuth() {
+      try {
+        const res = await fetch("/api/auth/me");
+        if (res.ok) {
+          const json = await res.json();
+          if (json.authenticated && json.user && isMounted) {
+            setAuthUser(json.user);
+          }
+        }
+      } catch {
+        // Unauthenticated
+      }
+    }
+    checkAuth();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -254,24 +276,54 @@ export default function RepoDashboardLayout({ children }: { children: React.Reac
           })}
         </nav>
 
-        {/* Bottom Bar: Back & Theme */}
-        <div className="border-t border-border p-3 space-y-1">
-          <Link
-            href="/"
-            className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          >
-            <ArrowLeft className="h-3.5 w-3.5" />
-            <span>Switch Repository</span>
-          </Link>
-          <div className="flex items-center justify-between px-3 py-2 text-xs text-muted-foreground">
-            <span>Theme</span>
-            <button
-              onClick={toggleTheme}
-              className="flex h-7 w-7 items-center justify-center rounded-md border border-border bg-background transition-colors hover:bg-muted"
-              title="Toggle theme"
+        {/* Bottom Bar: Auth, Back & Theme */}
+        <div className="border-t border-border p-3 space-y-2">
+          {authUser ? (
+            <div className="flex items-center justify-between rounded-lg bg-card/80 border border-border/60 px-2.5 py-1.5 text-xs">
+              <div className="flex items-center gap-2 truncate">
+                <img
+                  src={authUser.avatar_url}
+                  alt={authUser.login}
+                  className="h-4.5 w-4.5 rounded-full border border-primary/40 shrink-0"
+                />
+                <span className="font-mono text-[11px] font-medium truncate">{authUser.login}</span>
+              </div>
+              <span className="text-[9px] font-semibold text-emerald-500 bg-emerald-500/10 px-1 py-0.5 rounded shrink-0">
+                OAuth 5k/hr
+              </span>
+            </div>
+          ) : (
+            <a
+              href="/api/auth/github/login"
+              className="flex items-center justify-between rounded-lg border border-border/80 px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-all"
+              title="Connect GitHub account for 5,000 req/hr rate limit"
             >
-              {theme === "dark" ? <Sun className="h-3.5 w-3.5 text-amber-400" /> : <Moon className="h-3.5 w-3.5" />}
-            </button>
+              <div className="flex items-center gap-2">
+                <Github className="h-3.5 w-3.5" />
+                <span className="text-[11px]">Connect GitHub</span>
+              </div>
+              <span className="font-mono text-[10px] text-primary font-semibold">5k/hr</span>
+            </a>
+          )}
+
+          <div className="space-y-0.5">
+            <Link
+              href="/"
+              className="flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              <span>Switch Repository</span>
+            </Link>
+            <div className="flex items-center justify-between px-2.5 py-1 text-xs text-muted-foreground">
+              <span>Theme</span>
+              <button
+                onClick={toggleTheme}
+                className="flex h-7 w-7 items-center justify-center rounded-md border border-border bg-background transition-colors hover:bg-muted"
+                title="Toggle theme"
+              >
+                {theme === "dark" ? <Sun className="h-3.5 w-3.5 text-amber-400" /> : <Moon className="h-3.5 w-3.5" />}
+              </button>
+            </div>
           </div>
         </div>
       </aside>

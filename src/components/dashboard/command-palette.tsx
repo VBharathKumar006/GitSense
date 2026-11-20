@@ -93,7 +93,23 @@ export function CommandPalette({ isOpen, onClose, owner, name }: CommandPaletteP
     .filter((f) => f.toLowerCase().includes(query.toLowerCase()))
     .slice(0, 10);
 
+  // Check if query looks like a repository URL or owner/repo shorthand
+  const trimmed = query.trim().replace(/\/+$/, "");
+  const fullUrlMatch = trimmed.match(/^https?:\/\/(?:www\.)?github\.com\/([a-zA-Z0-9_.-]+)\/([a-zA-Z0-9_.-]+)/);
+  const shortMatch = trimmed.match(/^([a-zA-Z0-9_.-]+)\/([a-zA-Z0-9_.-]+)$/);
+  const repoMatch = fullUrlMatch || shortMatch;
+
+  const repoJumpItem = repoMatch ? [
+    {
+      type: "repo" as const,
+      label: `Switch to repository: ${repoMatch[1]}/${repoMatch[2]}`,
+      href: `/repo/${repoMatch[1]}/${repoMatch[2]}`,
+      icon: GitFork,
+    }
+  ] : [];
+
   const allItems = [
+    ...repoJumpItem,
     ...filteredPages.map((p) => ({ type: "page" as const, ...p })),
     ...filteredFiles.map((f) => ({
       type: "file" as const,
@@ -167,13 +183,40 @@ export function CommandPalette({ isOpen, onClose, owner, name }: CommandPaletteP
 
         {/* Results list */}
         <div className="max-h-96 overflow-y-auto p-2 space-y-1">
+          {repoJumpItem.length > 0 && (
+            <div className="mb-2">
+              <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-primary">
+                Switch Repository
+              </div>
+              <button
+                onClick={() => {
+                  router.push(repoJumpItem[0].href);
+                  onClose();
+                }}
+                className={cn(
+                  "flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs transition-colors",
+                  selectedIndex === 0
+                    ? "bg-primary text-primary-foreground font-semibold"
+                    : "bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20"
+                )}
+              >
+                <div className="flex items-center gap-2.5 font-mono font-semibold">
+                  <GitFork className="h-4 w-4" />
+                  <span>{repoJumpItem[0].label}</span>
+                </div>
+                <ArrowRight className="h-3 w-3" />
+              </button>
+            </div>
+          )}
+
           {filteredPages.length > 0 && (
             <div className="px-2 py-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
               Navigation Pages
             </div>
           )}
           {filteredPages.map((page, idx) => {
-            const isSelected = selectedIndex === idx;
+            const actualIdx = repoJumpItem.length + idx;
+            const isSelected = selectedIndex === actualIdx;
             const PageIcon = page.icon;
             return (
               <button
@@ -204,7 +247,7 @@ export function CommandPalette({ isOpen, onClose, owner, name }: CommandPaletteP
             </div>
           )}
           {filteredFiles.map((file, idx) => {
-            const actualIdx = filteredPages.length + idx;
+            const actualIdx = repoJumpItem.length + filteredPages.length + idx;
             const isSelected = selectedIndex === actualIdx;
             return (
               <button
