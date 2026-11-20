@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getRepositoryStore } from "@/lib/search/vector-store";
+import { queryPgVector, isPgVectorEnabled } from "@/lib/search/pgvector";
 import { generateEmbedding, answerCodeQuestion } from "@/lib/ai/gemini";
 import { analyzeRepository } from "@/lib/indexing/analyzer";
 import { demoSearchResults } from "@/lib/demo-data";
-import { CodeChunk } from "@/types/repository";
+import { CodeChunk, SearchResult } from "@/types/repository";
 
 export async function POST(
   req: NextRequest,
@@ -55,7 +56,18 @@ export async function POST(
       // Fallback gracefully to keyword search
     }
 
-    const matchedResults = store.search(query, queryEmbedding, 8);
+    // Check pgvector first if configured
+    let matchedResults: SearchResult[] = [];
+    if (queryEmbedding && isPgVectorEnabled()) {
+      const pgResults = await queryPgVector(repoId, queryEmbedding, 8);
+      if (pgResults && pgResults.length > 0) {
+        matchedResults = pgResults;
+      }
+    }
+
+    if (matchedResults.length === 0) {
+      matchedResults = store.search(query, queryEmbedding, 8);
+    }
     const topChunks = store.getChunks().slice(0, 5);
 
     // AI synthesis

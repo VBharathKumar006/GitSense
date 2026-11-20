@@ -175,3 +175,21 @@ test("File Tree Construction - creates nested directories", () => {
   assert.equal(tree[1].name, "package.json");
   assert.equal(tree[1].type, "file");
 });
+
+// 6. pgvector vector string formatting tests
+function formatVectorLiteral(v: number[]) {
+  return `[${v.join(",")}]`;
+}
+function parseVectorLiteral(str: string) {
+  const trimmed = str.trim().replace(/^\[|\]$/g, "");
+  if (!trimmed) return [];
+  return trimmed.split(",").map(Number);
+}
+
+test("pgvector Literal Formatting - formats and parses vector float arrays", () => {
+  const original = [0.1234, -0.5678, 0.9999];
+  const literal = formatVectorLiteral(original);
+  assert.equal(literal, "[0.1234,-0.5678,0.9999]");
+  const parsed = parseVectorLiteral(literal);
+  assert.deepEqual(parsed, original);
+});

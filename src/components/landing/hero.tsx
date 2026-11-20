@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowRight,
@@ -51,10 +51,36 @@ export function Hero() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisStep, setAnalysisStep] = useState(0);
   const [targetRepo, setTargetRepo] = useState<{ owner: string; name: string } | null>(null);
+  const [recentRepos, setRecentRepos] = useState<{ owner: string; name: string }[]>([]);
   const router = useRouter();
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("gitsense-recent-repos");
+      if (stored) {
+        setRecentRepos(JSON.parse(stored));
+      }
+    } catch {
+      // Ignore storage access error
+    }
+  }, []);
+
+  const saveRecentRepo = (owner: string, name: string) => {
+    try {
+      const updated = [
+        { owner, name },
+        ...recentRepos.filter((r) => !(r.owner.toLowerCase() === owner.toLowerCase() && r.name.toLowerCase() === name.toLowerCase())),
+      ].slice(0, 4);
+      setRecentRepos(updated);
+      localStorage.setItem("gitsense-recent-repos", JSON.stringify(updated));
+    } catch {
+      // Ignore
+    }
+  };
 
   const startAnalysis = (owner: string, name: string) => {
     setTargetRepo({ owner, name });
+    saveRecentRepo(owner, name);
     setIsAnalyzing(true);
     setAnalysisStep(0);
 
@@ -229,23 +255,44 @@ export function Hero() {
 
       {error && <p className="mt-3 text-xs text-destructive font-medium">{error}</p>}
 
-      {/* Example repos */}
+      {/* Recent repos & Example repos */}
       {!isAnalyzing && (
-        <div className="mt-6 flex flex-wrap items-center justify-center gap-2 text-xs text-muted-foreground">
-          <span>Try an example:</span>
-          {EXAMPLES.map((ex) => (
-            <button
-              key={`${ex.owner}/${ex.name}`}
-              onClick={() => handleExample(ex.owner, ex.name)}
-              className={cn(
-                "rounded-lg border border-border/80 bg-card/60 px-2.5 py-1",
-                "text-xs font-mono text-foreground/80 transition-all shadow-2xs",
-                "hover:border-primary/40 hover:bg-primary/5 hover:text-foreground"
-              )}
-            >
-              {ex.owner}/{ex.name}
-            </button>
-          ))}
+        <div className="mt-8 flex flex-col items-center gap-3 text-xs text-muted-foreground">
+          {recentRepos.length > 0 && (
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <span className="font-medium text-foreground/70">Recent:</span>
+              {recentRepos.map((r) => (
+                <button
+                  key={`recent-${r.owner}/${r.name}`}
+                  onClick={() => handleExample(r.owner, r.name)}
+                  className={cn(
+                    "rounded-lg border border-primary/30 bg-primary/5 px-2.5 py-1",
+                    "text-xs font-mono text-primary transition-all shadow-2xs",
+                    "hover:border-primary hover:bg-primary/10"
+                  )}
+                >
+                  {r.owner}/{r.name}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <span>Try an example:</span>
+            {EXAMPLES.map((ex) => (
+              <button
+                key={`${ex.owner}/${ex.name}`}
+                onClick={() => handleExample(ex.owner, ex.name)}
+                className={cn(
+                  "rounded-lg border border-border/80 bg-card/60 px-2.5 py-1",
+                  "text-xs font-mono text-foreground/80 transition-all shadow-2xs",
+                  "hover:border-primary/40 hover:bg-primary/5 hover:text-foreground"
+                )}
+              >
+                {ex.owner}/{ex.name}
+              </button>
+            ))}
+          </div>
         </div>
       )}
     </section>
