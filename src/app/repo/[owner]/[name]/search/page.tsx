@@ -21,23 +21,27 @@ import { demoSearchResults } from "@/lib/demo-data";
 import { SearchResult, Citation } from "@/types/repository";
 import { cn } from "@/lib/utils";
 
-const SAMPLE_QUERIES = [
-  "Where are shopping cart operations implemented?",
-  "Which file handles Shopify GraphQL API queries?",
-  "How are optimistic UI updates managed?",
-  "Where is cache revalidation triggered?",
-  "Find product page dynamic routing logic",
-];
-
 export default function CodeSearchPage() {
   const routeParams = useParams();
   const owner = (routeParams?.owner as string) || "owner";
   const name = (routeParams?.name as string) || "repo";
 
+  const isDemo = owner.toLowerCase() === "vercel" && name.toLowerCase() === "commerce";
+
+  const sampleQueries = [
+    `Where are API requests handled in ${name}?`,
+    `Explain the entry point execution flow in ${name}`,
+    `Where is the database or state storage configured?`,
+    `Which files handle authentication or security?`,
+    `Find core export utilities in ${name}`,
+  ];
+
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<SearchResult[]>(demoSearchResults);
+  const [results, setResults] = useState<SearchResult[]>(isDemo ? demoSearchResults : []);
   const [aiAnswer, setAiAnswer] = useState<string | null>(
-    "In vercel/commerce, cart operations are implemented in `src/components/cart/actions.ts` via Server Actions that interact with Shopify Storefront GraphQL queries in `src/lib/shopify/index.ts`."
+    isDemo
+      ? "In vercel/commerce, cart operations are implemented in `src/components/cart/actions.ts` via Server Actions that interact with Shopify Storefront GraphQL queries in `src/lib/shopify/index.ts`."
+      : null
   );
   const [citations, setCitations] = useState<Citation[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -144,7 +148,7 @@ export default function CodeSearchPage() {
         {/* Suggested Queries Chips */}
         <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
           <span className="text-muted-foreground font-medium">Suggestions:</span>
-          {SAMPLE_QUERIES.map((sq) => (
+          {sampleQueries.map((sq) => (
             <button
               key={sq}
               onClick={() => {

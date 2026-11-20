@@ -21,7 +21,30 @@ export default function RepoChatPage() {
   const owner = (routeParams?.owner as string) || "owner";
   const name = (routeParams?.name as string) || "repo";
 
-  const [messages, setMessages] = useState<ChatMessage[]>(demoChatMessages);
+  const isDemo = owner.toLowerCase() === "vercel" && name.toLowerCase() === "commerce";
+
+  const welcomeMessage: ChatMessage = {
+    id: "welcome-1",
+    role: "assistant",
+    content: `Hello! I have indexed **${owner}/${name}**. 
+
+I can help you understand the architecture, trace execution flows, find authentication handlers, API endpoints, or database connections grounded directly in this repository's source code.
+
+What would you like to know about **${name}**?`,
+    timestamp: "Just now",
+  };
+
+  const quickQuestions = [
+    `Where are API requests handled in ${name}?`,
+    `Explain the entry point execution flow`,
+    `Where is authentication or authorization?`,
+    `Which files should I modify to add a feature?`,
+    `Explain the architecture and how modules interact`,
+  ];
+
+  const [messages, setMessages] = useState<ChatMessage[]>(
+    isDemo ? demoChatMessages : [welcomeMessage]
+  );
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -73,27 +96,35 @@ export default function RepoChatPage() {
     const assistantMsg: ChatMessage = {
       id: `assistant-${Date.now()}`,
       role: "assistant",
-      content: `Based on the verified index for **${owner}/${name}**:
+      content: isDemo
+        ? `Based on the verified index for **${owner}/${name}**:
 
 Regarding "${userQuery}":
 - In this repository architecture, operations flow through \`src/lib/shopify/index.ts\` and server actions in \`src/components/cart/actions.ts\`.
-- All mutation handlers follow Next.js Server Actions with tagged revalidation.`,
-      citations: [
-        {
-          filePath: "src/components/cart/actions.ts",
-          startLine: 18,
-          endLine: 42,
-          snippet: "export async function addItem(...) { ... }",
-          functionName: "addItem",
-        },
-      ],
+- All mutation handlers follow Next.js Server Actions with tagged revalidation.`
+        : `Based on the verified index for **${owner}/${name}**:
+
+Regarding "${userQuery}":
+- In this repository, entry points and routes dispatch operations to core modules and shared libraries.
+- For grounded file inspection and line references, explore the **File Explorer** and **Architecture** views.`,
+      citations: isDemo
+        ? [
+            {
+              filePath: "src/components/cart/actions.ts",
+              startLine: 18,
+              endLine: 42,
+              snippet: "export async function addItem(...) { ... }",
+              functionName: "addItem",
+            },
+          ]
+        : [],
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     };
     setMessages((prev) => [...prev, assistantMsg]);
   };
 
   const clearChat = () => {
-    setMessages(demoChatMessages);
+    setMessages(isDemo ? demoChatMessages : [welcomeMessage]);
   };
 
   return (
@@ -207,7 +238,23 @@ Regarding "${userQuery}":
       </div>
 
       {/* Input Form at Bottom */}
-      <div className="shrink-0 border-t border-border bg-card/40 p-4 backdrop-blur-md">
+      <div className="shrink-0 border-t border-border bg-card/40 p-4 backdrop-blur-md space-y-3">
+        {/* Quick Question Pills */}
+        <div className="mx-auto flex max-w-4xl flex-wrap items-center gap-1.5">
+          <span className="text-[11px] font-medium text-muted-foreground mr-1">Suggestions:</span>
+          {quickQuestions.map((q) => (
+            <button
+              key={q}
+              onClick={() => {
+                setInput(q);
+              }}
+              className="rounded-lg border border-border/70 bg-background/80 px-2.5 py-1 text-[11px] text-muted-foreground transition-all hover:border-primary/40 hover:bg-primary/5 hover:text-foreground"
+            >
+              {q}
+            </button>
+          ))}
+        </div>
+
         <form
           onSubmit={(e) => {
             e.preventDefault();
