@@ -44,6 +44,22 @@ GitSense is a production-grade web application that acts as an intelligent assis
 - Integrated code viewer with line numbers and file statistics.
 - Direct navigation from search results, chat citations, and architecture nodes.
 
+### 7. 🛠️ Progressive Developer Utilities & Security Guardrails
+- **Environment Variable Audit:** Detects expected configuration flags without leaking secrets.
+- **Symbol & Export Finder:** Instantly filters all exported classes, functions, and interfaces.
+- **API Route Extractor:** Discovers HTTP routes (Next.js, Express, Fastify) and maps handler files.
+- **Security Diagnostics:** Scans for hardcoded tokens, API keys, and insecure dependencies.
+- **Circular DAG Import Check:** Detects circular dependency chains across modules.
+
+### 8. ⚡ Global Command Palette (`Ctrl+K`)
+- Instant keyboard shortcut dialog to fuzzy search files and navigate between all dashboard modules.
+
+### 9. 📥 1-Click Markdown Architecture Export
+- Download comprehensive `.md` architecture briefs for PR descriptions, RFCs, and offline documentation.
+
+### 10. 🔐 GitHub OAuth Authentication Flow
+- Seamless sign-in with GitHub increasing API limits to 5,000 req/hr and enabling private repository exploration.
+
 ---
 
 ## 🛠️ Technology Stack
@@ -90,14 +106,30 @@ cp .env.example .env.local
 # Optional: Google Gemini API key for dynamic AI generation
 GEMINI_API_KEY=your_gemini_api_key_here
 
-# Optional: GitHub token to increase rate limit from 60 to 5,000 req/hr
+# Optional: GitHub personal access token (increases rate limit to 5,000 req/hr)
 GITHUB_TOKEN=your_github_personal_access_token
 
-# Optional: Application URL
+# Optional: GitHub OAuth App credentials (for browser OAuth login)
+GITHUB_CLIENT_ID=your_github_oauth_client_id
+GITHUB_CLIENT_SECRET=your_github_oauth_client_secret
+
+# Optional: PostgreSQL + pgvector connection string for persistent vector index
+DATABASE_URL=postgresql://postgres:password@localhost:5432/gitsense
+
+# Application URL
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
-> **Note:** If `GEMINI_API_KEY` is not provided, GitSense automatically falls back to deterministic AST and hybrid keyword retrieval with pre-computed intelligence, allowing full functionality offline!
+> **Note:** If `GEMINI_API_KEY` or `DATABASE_URL` are not provided, GitSense automatically operates in zero-config offline mode with embedded cosine vector matching and AST-powered heuristics!
+
+### Optional: PostgreSQL + pgvector Setup
+
+To enable persistent relational vector indexing with HNSW search:
+
+```bash
+# Initialize PostgreSQL schema with pgvector extension & HNSW cosine index
+psql -d gitsense -f scripts/init-pgvector.sql
+```
 
 ### Development Server
 

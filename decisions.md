@@ -9,6 +9,10 @@
 - **ADR-006:** Security Hardening & Untrusted Repository Code Delimiters (Accepted)
 - **ADR-007:** Hermetic Font Strategy & Offline-Ready Builds (Accepted)
 - **ADR-008:** Native Node.js Test Runner with Zero External Test Dependencies (Accepted)
+- **ADR-009:** Dual-Mode Vector Indexing with PostgreSQL pgvector (Accepted)
+- **ADR-010:** GitHub OAuth Authentication & Token Forwarding (Accepted)
+- **ADR-011:** Fuzzy Command Palette Navigation (Ctrl+K) (Accepted)
+- **ADR-012:** Progressive Developer Diagnostics & Route Extractor (Accepted)
 
 ---
 
@@ -51,3 +55,23 @@
 - **Context:** Need fast, zero-dependency unit testing for core algorithms.
 - **Decision:** Use Node.js 22's built-in `node:test` and `node:assert/strict` with `--experimental-strip-types`.
 - **Rationale:** Runs test suites in under 400ms without installing heavy testing dependencies (Jest/Vitest).
+
+### ADR-009: Dual-Mode Vector Indexing with PostgreSQL pgvector
+- **Context:** Applications need both low-overhead local demo exploration and scalable persistent vector search across enterprise repositories.
+- **Decision:** Implement a dual-mode vector storage layer: embedded in-memory cosine store for zero-config setups, and relational PostgreSQL + `pgvector` with HNSW cosine distance indexing when `DATABASE_URL` is configured (`scripts/init-pgvector.sql`).
+- **Rationale:** Gives instant out-of-the-box local developer usability with seamless transition to production multi-tenant vector databases.
+
+### ADR-010: GitHub OAuth Authentication & Token Forwarding
+- **Context:** GitHub's public API limits unauthenticated IP requests to 60 calls/hour, risking rate limit exhaustion during large repository ingests.
+- **Decision:** Implement a complete GitHub OAuth flow (`/api/auth/github/*`) storing the authenticated access token in secure HTTP-only cookies.
+- **Rationale:** Expands rate limits from 60 to 5,000 requests/hour and enables authorized access to private team repositories.
+
+### ADR-011: Fuzzy Command Palette Navigation (Ctrl+K)
+- **Context:** Navigating dense repositories with hundreds of files and multiple views creates friction in standard menus.
+- **Decision:** Integrate a global modal command palette accessible via `Ctrl+K` / `Cmd+K` that supports fuzzy searching files and pages.
+- **Rationale:** Accelerates developer navigation matching VSCode / GitHub native keybindings and mental models.
+
+### ADR-012: Progressive Developer Diagnostics & Route Extractor
+- **Context:** Code understanding requires more than basic search: engineers need environment audits, API discovery, and circular dependency checks.
+- **Decision:** Provide a dedicated `/utilities` suite analyzing manifest files and ASTs for environment variables (without secret values), API routes (Next.js, Express, Fastify), security vulnerabilities, and circular DAG imports.
+- **Rationale:** Delivers actionable, instant insights for audits, PR reviews, and onboarding without third-party static analysis servers.
