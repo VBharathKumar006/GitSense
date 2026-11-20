@@ -143,7 +143,7 @@ Visit [http://localhost:3000](http://localhost:3000) to open GitSense.
 
 ## 🧪 Testing & Verification
 
-GitSense includes native automated unit tests covering GitHub URL parsing, vector cosine similarity math, keyword frequency scoring, and file filtering logic:
+GitSense includes 14 native automated unit tests covering GitHub URL parsing, vector cosine similarity math, keyword frequency scoring, file filtering logic, hierarchical tree construction, pgvector literal formatting, bidirectional branch fallback resolution, and line-exact code chunking:
 
 ```bash
 # Run unit tests
