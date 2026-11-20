@@ -26,6 +26,7 @@ import { useTheme } from "@/components/providers/theme-provider";
 import { cn, formatNumber } from "@/lib/utils";
 import { demoRepository } from "@/lib/demo-data";
 import { Repository } from "@/types/repository";
+import { CommandPalette } from "@/components/dashboard/command-palette";
 
 export default function RepoDashboardLayout({ children }: { children: React.ReactNode }) {
   const routeParams = useParams();
@@ -35,7 +36,19 @@ export default function RepoDashboardLayout({ children }: { children: React.Reac
   const pathname = usePathname();
   const { theme, toggleTheme } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [repo, setRepo] = useState<Repository>(demoRepository);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setCommandPaletteOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   useEffect(() => {
     if (owner !== demoRepository.owner || name !== demoRepository.name) {
@@ -169,6 +182,20 @@ export default function RepoDashboardLayout({ children }: { children: React.Reac
           </div>
         </div>
 
+        {/* Quick Search Ctrl+K trigger */}
+        <div className="px-3 pt-1 pb-1">
+          <button
+            onClick={() => setCommandPaletteOpen(true)}
+            className="flex w-full items-center justify-between rounded-lg border border-border/80 bg-background/80 px-2.5 py-1.5 text-xs text-muted-foreground transition-all hover:border-primary/40 hover:bg-muted"
+          >
+            <div className="flex items-center gap-2">
+              <Search className="h-3.5 w-3.5" />
+              <span>Quick search...</span>
+            </div>
+            <kbd className="rounded border border-border bg-card px-1.5 py-0.5 font-mono text-[10px] font-semibold">Ctrl K</kbd>
+          </button>
+        </div>
+
         {/* Navigation Links */}
         <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-3">
           {navItems.map((item) => {
@@ -252,6 +279,14 @@ export default function RepoDashboardLayout({ children }: { children: React.Reac
           {children}
         </main>
       </div>
+
+      {/* Global Command Palette */}
+      <CommandPalette
+        isOpen={commandPaletteOpen}
+        onClose={() => setCommandPaletteOpen(false)}
+        owner={owner}
+        name={name}
+      />
     </div>
   );
 }
