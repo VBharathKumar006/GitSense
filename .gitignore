@@ -31,6 +31,24 @@ yarn-error.log*
 # env files
 .env
 .env*.local
+.env.local
+.env.development
+.env.test
+.env.production
+*.local
+
+# logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# databases and scratch
+*.sqlite
+*.db
+/data/
+scratch/
 
 # vercel
 .vercel
