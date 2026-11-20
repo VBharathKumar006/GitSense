@@ -7,36 +7,65 @@ import {
 } from "@/types/repository";
 
 const GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta";
+const GEMINI_API_V1 = "https://generativelanguage.googleapis.com/v1";
+
+// Resilient priority order of models with verified operational status
+const GEMINI_MODELS = [
+  "gemini-flash-lite-latest",
+  "gemini-3.5-flash-lite",
+  "gemini-3.8-flash",
+  "gemini-2.5-flash-lite",
+];
+
+const EMBEDDING_MODELS = [
+  "models/gemini-embedding-001",
+  "models/gemini-embedding-2",
+  "models/text-embedding-004",
+];
 
 function getApiKey(): string | null {
   return process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || null;
 }
 
+/**
+ * Generates vector embeddings using Gemini's embedding models
+ */
 export async function generateEmbedding(text: string): Promise<number[] | null> {
   const apiKey = getApiKey();
   if (!apiKey) return null;
 
-  try {
-    const res = await fetch(
-      `${GEMINI_API_BASE}/models/text-embedding-004:embedContent?key=${apiKey}`,
-      {
+  const truncated = text.slice(0, 8000);
+
+  for (const embedModel of EMBEDDING_MODELS) {
+    try {
+      // Try v1 endpoint first for gemini-embedding-001
+      const url = `${GEMINI_API_V1}/${embedModel}:embedContent?key=${apiKey}`;
+      const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "models/text-embedding-004",
-          content: { parts: [{ text: text.slice(0, 8000) }] },
+          model: embedModel,
+          content: { parts: [{ text: truncated }] },
         }),
-      }
-    );
+      });
 
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data.embedding?.values || null;
-  } catch {
-    return null;
+      if (res.ok) {
+        const data = await res.json();
+        if (data.embedding?.values) {
+          return data.embedding.values;
+        }
+      }
+    } catch {
+      // Continue to next embedding model
+    }
   }
+
+  return null;
 }
 
+/**
+ * Dispatches a prompt to Gemini with automatic model failover and logging
+ */
 export async function callGemini(
   prompt: string,
   systemInstruction?: string,
@@ -46,9 +75,6 @@ export async function callGemini(
   if (!apiKey) {
     throw new Error("GEMINI_API_KEY is not configured.");
   }
-
-  const model = "gemini-2.0-flash";
-  const url = `${GEMINI_API_BASE}/models/${model}:generateContent?key=${apiKey}`;
 
   const body: any = {
     contents: [{ role: "user", parts: [{ text: prompt }] }],
@@ -64,26 +90,50 @@ export async function callGemini(
     };
   }
 
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
+  let lastError: Error | null = null;
 
-  if (!res.ok) {
-    const errText = await res.text();
-    throw new Error(`Gemini API error (${res.status}): ${errText}`);
+  for (const model of GEMINI_MODELS) {
+    try {
+      const url = `${GEMINI_API_BASE}/models/${model}:generateContent?key=${apiKey}`;
+      console.log(`[GitSense AI] Calling Gemini with model: ${model}...`);
+
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        console.warn(`[GitSense AI Warning] Model ${model} returned ${res.status}: ${errText.slice(0, 150)}`);
+        // If 404, 503, or 429, failover to next model
+        if (res.status === 404 || res.status === 503 || res.status === 429) {
+          lastError = new Error(`Model ${model} returned ${res.status}: ${errText}`);
+          continue;
+        }
+        throw new Error(`Gemini API error (${res.status}): ${errText}`);
+      }
+
+      const data = await res.json();
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!text) {
+        throw new Error(`Empty response received from Gemini model ${model}.`);
+      }
+
+      console.log(`[GitSense AI] Successfully generated response with model: ${model}`);
+      return text;
+    } catch (err: any) {
+      lastError = err;
+      console.warn(`[GitSense AI Warning] Exception on model ${model}: ${err.message}`);
+    }
   }
 
-  const data = await res.json();
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!text) {
-    throw new Error("Empty response received from Gemini.");
-  }
-
-  return text;
+  throw lastError || new Error("All Gemini model endpoints failed to respond.");
 }
 
+/**
+ * Performs AI synthesis for code search queries grounded in retrieved repository chunks
+ */
 export async function answerCodeQuestion(
   query: string,
   retrievedChunks: CodeChunk[],
@@ -147,6 +197,7 @@ Provide:
 3. Brief explanation of the flow and related dependencies.`;
 
   try {
+    console.log(`[GitSense AI] Answering code question for "${query}" using ${retrievedChunks.length} chunks...`);
     const rawAnswer = await callGemini(prompt, systemInstruction, 0.2);
     const citations: Citation[] = retrievedChunks.slice(0, 4).map((c) => ({
       filePath: c.filePath,
@@ -158,13 +209,25 @@ Provide:
 
     return { answer: rawAnswer, citations };
   } catch (err: any) {
+    console.error(`[GitSense AI Error] Answer generation error: ${err.message}`);
+    const fallbackCitations: Citation[] = retrievedChunks.slice(0, 3).map((c) => ({
+      filePath: c.filePath,
+      startLine: c.startLine,
+      endLine: c.endLine,
+      snippet: c.content.slice(0, 150) + "...",
+      functionName: c.name,
+    }));
+
     return {
-      answer: `Unable to complete AI analysis (${err.message}). Showing best-matching retrieved code chunks below.`,
-      citations: [],
+      answer: `Unable to complete dynamic AI analysis (${err.message}). Showing best-matching retrieved code chunks below.`,
+      citations: fallbackCitations,
     };
   }
 }
 
+/**
+ * Handles conversational queries with multi-turn repository awareness
+ */
 export async function chatWithRepository(
   messages: { role: string; content: string }[],
   retrievedChunks: CodeChunk[],
@@ -219,6 +282,7 @@ ${contextSnippets}
 Respond to the latest question with grounded technical clarity:`;
 
   try {
+    console.log(`[GitSense AI] Processing chat turn for repo "${repoName}" with ${retrievedChunks.length} chunks...`);
     const reply = await callGemini(prompt, systemInstruction, 0.3);
     const citations: Citation[] = retrievedChunks.slice(0, 3).map((c) => ({
       filePath: c.filePath,
@@ -230,9 +294,45 @@ Respond to the latest question with grounded technical clarity:`;
 
     return { reply, citations };
   } catch (err: any) {
+    console.error(`[GitSense AI Error] Chat generation error: ${err.message}`);
     return {
-      reply: `Chat service encountered an error: ${err.message}. Please verify your GEMINI_API_KEY.`,
+      reply: `Chat service encountered an error: ${err.message}. Please verify your GEMINI_API_KEY configuration.`,
       citations: [],
     };
   }
+}
+
+/**
+ * Diagnostic test to verify Gemini API key validity and active model availability
+ */
+export async function testGeminiConnection(): Promise<{
+  success: boolean;
+  model?: string;
+  error?: string;
+}> {
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    return { success: false, error: "GEMINI_API_KEY is not set." };
+  }
+
+  for (const model of GEMINI_MODELS) {
+    try {
+      const url = `${GEMINI_API_BASE}/models/${model}:generateContent?key=${apiKey}`;
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ role: "user", parts: [{ text: "ping" }] }],
+        }),
+      });
+
+      if (res.ok) {
+        return { success: true, model };
+      }
+    } catch {
+      continue;
+    }
+  }
+
+  return { success: false, error: "Could not connect to any supported Gemini model endpoints." };
 }

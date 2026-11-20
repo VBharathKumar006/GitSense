@@ -86,7 +86,25 @@ export async function POST(
     if (matchedResults.length === 0) {
       matchedResults = store.search(query, queryEmbedding, 8);
     }
-    const topChunks = store.getChunks().slice(0, 5);
+    
+    // Pass query-matching chunks into AI synthesis
+    const topChunks: CodeChunk[] = matchedResults.length > 0
+      ? matchedResults.map((r) => {
+          const original = store.getChunks().find((c) => c.id === r.id);
+          if (original) return original;
+          return {
+            id: r.id,
+            filePath: r.filePath,
+            fileName: r.fileName,
+            language: r.language,
+            startLine: r.startLine,
+            endLine: r.endLine,
+            content: r.snippet,
+            type: "function" as const,
+            name: r.fileName,
+          };
+        })
+      : store.getChunks().slice(0, 5);
 
     // AI synthesis
     const { answer, citations } = await answerCodeQuestion(
